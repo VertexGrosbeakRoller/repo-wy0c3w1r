@@ -4,6 +4,7 @@ import com.darkmagician6.eventapi.EventTarget;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.base.events.impl.player.EventUpdate;
@@ -100,31 +101,42 @@ public class ElytraMotion extends Module {
       if (auraTarget != null && auraTarget.isAlive()) {
          double dist = mc.player.distanceTo(auraTarget);
          
-         // If close to target (< 5 blocks) — hover/slow down, don't boost
-         if (dist < 5.0) {
-            // Slow down by reducing velocity when near target
-            Vec3d toTarget = auraTarget.getPos().subtract(mc.player.getPos()).normalize();
-            double currentSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+         // If close to target (< 6 blocks) — hover in place near them
+         if (dist < 6.0) {
+            Vec3d targetPos = auraTarget.getPos();
+            Vec3d playerPos = mc.player.getPos();
             
-            if (currentSpeed > 0.3) {
-               // Apply braking — reduce horizontal velocity
-               mc.player.setVelocity(
-                  velocity.x * 0.7,
-                  Math.max(velocity.y, -0.05), // Don't fall fast
-                  velocity.z * 0.7
-               );
+            // Calculate desired hover position slightly above target
+            double desiredY = targetPos.y + 1.5;
+            double yDiff = desiredY - playerPos.y;
+            
+            // Vertical: hold altitude near target
+            double vy = MathHelper.clamp(yDiff * 0.15, -0.1, 0.1);
+            
+            // Horizontal: orbit/stay near target at ~3 blocks distance
+            Vec3d toTarget = targetPos.subtract(playerPos);
+            double horizDist = Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z);
+            
+            double vx, vz;
+            if (horizDist > 4.0) {
+               // Move toward target
+               vx = (toTarget.x / horizDist) * 0.12;
+               vz = (toTarget.z / horizDist) * 0.12;
+            } else if (horizDist < 2.0) {
+               // Move away from target slightly
+               vx = -(toTarget.x / Math.max(horizDist, 0.1)) * 0.05;
+               vz = -(toTarget.z / Math.max(horizDist, 0.1)) * 0.05;
             } else {
-               // Hover — maintain altitude
-               mc.player.setVelocity(
-                  toTarget.x * 0.05,
-                  velocity.y > -0.02 ? velocity.y : velocity.y + 0.04,
-                  toTarget.z * 0.05
-               );
+               // Hold position — brake
+               vx = velocity.x * 0.4;
+               vz = velocity.z * 0.4;
             }
-            return false; // Don't boost when near target
+            
+            mc.player.setVelocity(vx, vy, vz);
+            return false; // Don't boost when hovering near target
          }
          
-         // Target is far — chase it, boost if needed
+         // Target is far — chase it, boost
          if (dist > 8.0) {
             fireworkTick = 0;
             return true;

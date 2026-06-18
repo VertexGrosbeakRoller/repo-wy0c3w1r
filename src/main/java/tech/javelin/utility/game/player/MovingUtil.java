@@ -166,6 +166,35 @@ public final class MovingUtil implements IMinecraft {
       return getDirectionalInputForDegrees(input, dgs, 20.0F);
    }
 
+   public static float getdir() {
+      float forward = mc.player.input.movementForward;
+      float strafe = mc.player.input.movementSideways;
+      float yaw = mc.player.getYaw();
+      if (forward == 0.0F && strafe == 0.0F) {
+         return -1.0F;
+      }
+      if (forward != 0.0F) {
+         if (strafe > 0.0F) {
+            yaw += forward > 0.0F ? -45.0F : 45.0F;
+         } else if (strafe < 0.0F) {
+            yaw += forward > 0.0F ? 45.0F : -45.0F;
+         }
+         if (forward > 0.0F) {
+            strafe = 0.0F;
+         } else if (forward < 0.0F) {
+            yaw += 180.0F;
+            strafe = 0.0F;
+         }
+      } else {
+         if (strafe > 0.0F) {
+            yaw -= 90.0F;
+         } else if (strafe < 0.0F) {
+            yaw += 90.0F;
+         }
+      }
+      return yaw;
+   }
+
    @Generated
    private MovingUtil() {
       throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");

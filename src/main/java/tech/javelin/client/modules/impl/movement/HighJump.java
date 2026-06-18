@@ -1,6 +1,8 @@
 package tech.javelin.client.modules.impl.movement;
 
 import com.darkmagician6.eventapi.EventTarget;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.util.math.Vec3d;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.base.events.impl.player.EventUpdate;
 import tech.javelin.client.modules.api.Category;
@@ -11,14 +13,14 @@ import tech.javelin.client.modules.api.setting.impl.NumberSetting;
 @ModuleAnnotation(
    name = "HighJump",
    category = Category.MOVEMENT,
-   description = "Увеличивает высоту прыжка"
+   description = "Усиливает подъём от левитации шалкера"
 )
 public final class HighJump extends Module {
    public static final HighJump INSTANCE = new HighJump();
    
-   private final NumberSetting jumpHeight = new NumberSetting("Высота", 1.5F, 0.5F, 5.0F, 0.1F);
+   private final NumberSetting jumpHeight = new NumberSetting("Множитель", 2.0F, 1.0F, 5.0F, 0.1F);
    
-   private boolean wasOnGround = false;
+   private boolean hadLevitation = false;
    
    private HighJump() {}
 
@@ -27,23 +29,22 @@ public final class HighJump extends Module {
    public void onUpdate(EventUpdate event) {
       if (mc.player == null || mc.world == null) return;
       
-      boolean onGround = mc.player.isOnGround();
+      boolean hasLevitation = mc.player.hasStatusEffect(StatusEffects.LEVITATION);
       
-      if (wasOnGround && !onGround && mc.player.getVelocity().y > 0) {
-         double baseJumpVelocity = 0.42;
-         double multiplier = jumpHeight.getCurrent();
-         mc.player.setVelocity(
-            mc.player.getVelocity().x,
-            baseJumpVelocity * multiplier,
-            mc.player.getVelocity().z
-         );
+      if (hasLevitation) {
+         Vec3d vel = mc.player.getVelocity();
+         if (vel.y > 0) {
+            double multiplier = jumpHeight.getCurrent();
+            mc.player.setVelocity(vel.x, vel.y * multiplier, vel.z);
+         }
+         hadLevitation = true;
+      } else if (hadLevitation) {
+         hadLevitation = false;
       }
-      
-      wasOnGround = onGround;
    }
    
    @Override
    public void onEnable() {
-      wasOnGround = false;
+      hadLevitation = false;
    }
 }

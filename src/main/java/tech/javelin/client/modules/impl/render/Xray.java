@@ -15,25 +15,33 @@ import tech.javelin.base.events.impl.render.EventRender3D;
 import tech.javelin.client.modules.api.Category;
 import tech.javelin.client.modules.api.Module;
 import tech.javelin.client.modules.api.ModuleAnnotation;
+import tech.javelin.client.modules.api.setting.impl.BooleanSetting;
 import tech.javelin.client.modules.api.setting.impl.NumberSetting;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @ModuleAnnotation(
-   name = "AncientDebris",
+   name = "Xray",
    category = Category.RENDER,
-   description = "Обводка незеритовых обломков через стены"
+   description = "Подсвечивает руды через стены"
 )
-public final class AncientDebris extends Module {
-   public static final AncientDebris INSTANCE = new AncientDebris();
+public final class Xray extends Module {
+   public static final Xray INSTANCE = new Xray();
    
    private final NumberSetting radius = new NumberSetting("Радиус", 16, 4, 32, 1, "Блоки");
+   private final BooleanSetting showDiamonds = new BooleanSetting("Алмазы", true);
+   private final BooleanSetting showEmeralds = new BooleanSetting("Изумруды", true);
+   private final BooleanSetting showGold = new BooleanSetting("Золото", true);
+   private final BooleanSetting showIron = new BooleanSetting("Железо", false);
+   private final BooleanSetting showRedstone = new BooleanSetting("Редстоун", false);
+   private final BooleanSetting showLapis = new BooleanSetting("Лазурит", false);
+   private final BooleanSetting showCopper = new BooleanSetting("Медь", false);
    
-   private final List<BlockPos> foundBlocks = new ArrayList<>();
+   private final List<OreEntry> foundBlocks = new ArrayList<>();
    private int scanTick = 0;
    
-   private AncientDebris() {}
+   private Xray() {}
    
    @EventTarget
    @Native
@@ -61,12 +69,12 @@ public final class AncientDebris extends Module {
       RenderSystem.lineWidth(2.0F);
       RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
       
-      for (BlockPos pos : foundBlocks) {
-         double x = pos.getX() - camera.x;
-         double y = pos.getY() - camera.y;
-         double z = pos.getZ() - camera.z;
+      for (OreEntry entry : foundBlocks) {
+         double x = entry.pos.getX() - camera.x;
+         double y = entry.pos.getY() - camera.y;
+         double z = entry.pos.getZ() - camera.z;
          
-         drawOutline(matrices, (float) x, (float) y, (float) z);
+         drawOutline(matrices, (float) x, (float) y, (float) z, entry.r, entry.g, entry.b);
       }
       
       RenderSystem.depthMask(true);
@@ -89,23 +97,42 @@ public final class AncientDebris extends Module {
             for (int z = -r; z <= r; z++) {
                BlockPos pos = playerPos.add(x, y, z);
                Block block = mc.world.getBlockState(pos).getBlock();
-               if (block == Blocks.ANCIENT_DEBRIS) {
-                  foundBlocks.add(pos);
+               int[] color = getOreColor(block);
+               if (color != null) {
+                  foundBlocks.add(new OreEntry(pos, color[0], color[1], color[2]));
                }
             }
          }
       }
    }
    
-   private void drawOutline(MatrixStack matrices, float x, float y, float z) {
+   private int[] getOreColor(Block block) {
+      if (showDiamonds.isEnabled() && (block == Blocks.DIAMOND_ORE || block == Blocks.DEEPSLATE_DIAMOND_ORE))
+         return new int[]{80, 220, 255};
+      if (showEmeralds.isEnabled() && (block == Blocks.EMERALD_ORE || block == Blocks.DEEPSLATE_EMERALD_ORE))
+         return new int[]{80, 255, 80};
+      if (showGold.isEnabled() && (block == Blocks.GOLD_ORE || block == Blocks.DEEPSLATE_GOLD_ORE || block == Blocks.NETHER_GOLD_ORE))
+         return new int[]{255, 215, 0};
+      if (showIron.isEnabled() && (block == Blocks.IRON_ORE || block == Blocks.DEEPSLATE_IRON_ORE))
+         return new int[]{200, 180, 160};
+      if (showRedstone.isEnabled() && (block == Blocks.REDSTONE_ORE || block == Blocks.DEEPSLATE_REDSTONE_ORE))
+         return new int[]{255, 50, 50};
+      if (showLapis.isEnabled() && (block == Blocks.LAPIS_ORE || block == Blocks.DEEPSLATE_LAPIS_ORE))
+         return new int[]{50, 50, 255};
+      if (showCopper.isEnabled() && (block == Blocks.COPPER_ORE || block == Blocks.DEEPSLATE_COPPER_ORE))
+         return new int[]{200, 120, 50};
+      return null;
+   }
+   
+   private void drawOutline(MatrixStack matrices, float x, float y, float z, int r, int g, int b) {
       Matrix4f matrix = matrices.peek().getPositionMatrix();
       Tessellator tessellator = Tessellator.getInstance();
       
-      int r = 139, g = 90, b = 43, a = 255;
+      int a = 255;
       
       BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
       
-      // Bottom edges
+      // Bottom
       buffer.vertex(matrix, x, y, z).color(r, g, b, a);
       buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
       buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
@@ -114,8 +141,7 @@ public final class AncientDebris extends Module {
       buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
       buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
       buffer.vertex(matrix, x, y, z).color(r, g, b, a);
-      
-      // Top edges
+      // Top
       buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
       buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
       buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
@@ -124,8 +150,7 @@ public final class AncientDebris extends Module {
       buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
       buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
       buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
-      
-      // Vertical edges
+      // Verticals
       buffer.vertex(matrix, x, y, z).color(r, g, b, a);
       buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
       buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
@@ -147,5 +172,16 @@ public final class AncientDebris extends Module {
    @Override
    public void onDisable() {
       foundBlocks.clear();
+   }
+   
+   private static class OreEntry {
+      final BlockPos pos;
+      final int r, g, b;
+      OreEntry(BlockPos pos, int r, int g, int b) {
+         this.pos = pos;
+         this.r = r;
+         this.g = g;
+         this.b = b;
+      }
    }
 }

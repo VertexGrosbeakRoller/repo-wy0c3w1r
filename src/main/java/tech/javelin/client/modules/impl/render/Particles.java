@@ -173,6 +173,15 @@ public final class Particles extends Module {
       }
    }
    
+   @EventTarget
+   @Native
+   public void onAttack(tech.javelin.base.events.impl.player.EventAttack event) {
+      if (onCrit.isEnabled() && event.getTarget() != null) {
+         Entity target = event.getTarget();
+         spawnParticles(target.getX(), target.getY() + target.getHeight() / 2, target.getZ(), (int) particleCount.getCurrent() / 2);
+      }
+   }
+   
    // Вызывается вручную при крите
    public void spawnCritParticles(double x, double y, double z) {
       if (isEnabled() && onCrit.isEnabled()) {

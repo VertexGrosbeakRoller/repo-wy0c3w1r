@@ -2,29 +2,28 @@ package tech.javelin.client.modules.impl.player;
 
 import com.darkmagician6.eventapi.EventTarget;
 import net.minecraft.block.Block;
-import net.minecraft.item.ItemStack;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.PotionContentsComponent;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.item.*;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.base.events.impl.player.EventUpdate;
 import tech.javelin.client.modules.api.Category;
 import tech.javelin.client.modules.api.Module;
 import tech.javelin.client.modules.api.ModuleAnnotation;
-import tech.javelin.client.modules.api.setting.impl.BooleanSetting;
-import tech.javelin.client.modules.api.setting.impl.ModeSetting;
 
 @ModuleAnnotation(
    name = "AutoTool",
    category = Category.PLAYER,
-   description = "При копании берет лучший предмет"
+   description = "Умный выбор предмета: меч для атаки, зелье/гэпл при низком хп"
 )
 public final class AutoTool extends Module {
    public static final AutoTool INSTANCE = new AutoTool();
    private int previousSlot = -1;
-   
-   private final ModeSetting mode = new ModeSetting("Режим", "Умный", "Обычный", "Умный");
-   private final BooleanSetting returnBack = new BooleanSetting("Возвращать слот", "Возвращать предыдущий слот после копания", true);
-   private final BooleanSetting durabilityCheck = new BooleanSetting("Проверка прочности", "Не использовать инструмент с низкой прочностью", true);
+   private boolean switchedForAttack = false;
 
    private AutoTool() {
    }
@@ -32,71 +31,158 @@ public final class AutoTool extends Module {
    @EventTarget
    @Native
    public void onUpdate(EventUpdate event) {
-      if (mc.player != null && mc.world != null && mc.interactionManager != null && !mc.player.isCreative()) {
-         if (mc.interactionManager.isBreakingBlock() && this.previousSlot == -1) {
-            this.previousSlot = mc.player.getInventory().selectedSlot;
-         }
-
-         if (mc.interactionManager.isBreakingBlock()) {
-            int toolSlot = this.findOptimalTool();
-            if (toolSlot != -1) {
-               mc.player.getInventory().selectedSlot = toolSlot;
+      if (mc.player == null || mc.world == null || mc.interactionManager == null) return;
+      if (mc.player.isCreative()) return;
+      
+      float health = mc.player.getHealth();
+      
+      // If looking at entity and left clicking — switch to sword
+      if (mc.crosshairTarget instanceof EntityHitResult && mc.options.attackKey.isPressed()) {
+         int swordSlot = findSword();
+         if (swordSlot != -1 && mc.player.getInventory().selectedSlot != swordSlot) {
+            if (!switchedForAttack) {
+               previousSlot = mc.player.getInventory().selectedSlot;
+               switchedForAttack = true;
             }
-         } else if (this.previousSlot != -1 && returnBack.isEnabled()) {
-            mc.player.getInventory().selectedSlot = this.previousSlot;
-            this.previousSlot = -1;
+            mc.player.getInventory().selectedSlot = swordSlot;
          }
-
-      } else {
-         this.previousSlot = -1;
+         return;
+      }
+      
+      // If right clicking and low HP — switch to healing item
+      if (mc.options.useKey.isPressed() && health <= 10.0F) {
+         int healSlot = findHealingItem();
+         if (healSlot != -1) {
+            mc.player.getInventory().selectedSlot = healSlot;
+            return;
+         }
+      }
+      
+      // If right clicking and high HP — switch to any potion
+      if (mc.options.useKey.isPressed() && health > 10.0F) {
+         int potionSlot = findAnyPotion();
+         if (potionSlot != -1) {
+            mc.player.getInventory().selectedSlot = potionSlot;
+            return;
+         }
+      }
+      
+      // Block mining — switch to best tool
+      if (mc.interactionManager.isBreakingBlock()) {
+         if (previousSlot == -1) {
+            previousSlot = mc.player.getInventory().selectedSlot;
+         }
+         int toolSlot = findOptimalTool();
+         if (toolSlot != -1) {
+            mc.player.getInventory().selectedSlot = toolSlot;
+         }
+         return;
+      }
+      
+      // Return to previous slot when done attacking
+      if (switchedForAttack && !mc.options.attackKey.isPressed()) {
+         if (previousSlot != -1) {
+            mc.player.getInventory().selectedSlot = previousSlot;
+         }
+         previousSlot = -1;
+         switchedForAttack = false;
+      }
+      
+      // Return to previous slot when done mining
+      if (!mc.interactionManager.isBreakingBlock() && previousSlot != -1 && !switchedForAttack) {
+         mc.player.getInventory().selectedSlot = previousSlot;
+         previousSlot = -1;
       }
    }
 
-   private int findOptimalTool() {
-      if (mc.player != null && mc.world != null) {
-         HitResult var2 = mc.crosshairTarget;
-         if (var2 instanceof BlockHitResult) {
-            BlockHitResult blockHitResult = (BlockHitResult)var2;
-            Block block = mc.world.getBlockState(blockHitResult.getBlockPos()).getBlock();
-            return this.findTool(block);
-         } else {
-            return -1;
-         }
-      } else {
-         return 0;
-      }
-   }
-
-   private int findTool(Block block) {
+   private int findSword() {
       int bestSlot = -1;
-      float bestSpeed = 1.0F;
-
-      for(int i = 0; i < 9; ++i) {
+      float bestDamage = 0;
+      for (int i = 0; i < 9; i++) {
          ItemStack stack = mc.player.getInventory().getStack(i);
-         
-         // Smart mode: skip items with low durability
-         if (mode.is("Умный") && durabilityCheck.isEnabled()) {
-            if (stack.isDamageable() && stack.getMaxDamage() - stack.getDamage() <= 5) {
-               continue;
+         if (stack.getItem() instanceof SwordItem sword) {
+            float damage = sword.getComponents().get(DataComponentTypes.ATTRIBUTE_MODIFIERS) != null ? 1.0F : 0;
+            // Prefer higher tier swords
+            if (stack.getItem() == Items.NETHERITE_SWORD) damage = 8;
+            else if (stack.getItem() == Items.DIAMOND_SWORD) damage = 7;
+            else if (stack.getItem() == Items.IRON_SWORD) damage = 6;
+            else if (stack.getItem() == Items.STONE_SWORD) damage = 5;
+            else if (stack.getItem() == Items.GOLDEN_SWORD) damage = 4;
+            else if (stack.getItem() == Items.WOODEN_SWORD) damage = 3;
+            else damage = 2;
+            if (damage > bestDamage) {
+               bestDamage = damage;
+               bestSlot = i;
             }
          }
-         
-         float speed = this.getMiningSpeed(i, block);
-         if (speed > bestSpeed) {
-            bestSpeed = speed;
-            bestSlot = i;
-         }
       }
-
       return bestSlot;
    }
 
-   private float getMiningSpeed(int slot, Block block) {
-      return mc.player == null ? 0.0F : mc.player.getInventory().getStack(slot).getMiningSpeedMultiplier(block.getDefaultState());
+   private int findHealingItem() {
+      // First look for golden apple
+      for (int i = 0; i < 9; i++) {
+         ItemStack stack = mc.player.getInventory().getStack(i);
+         if (stack.getItem() == Items.GOLDEN_APPLE || stack.getItem() == Items.ENCHANTED_GOLDEN_APPLE) {
+            return i;
+         }
+      }
+      // Then look for healing/regen potion
+      for (int i = 0; i < 9; i++) {
+         ItemStack stack = mc.player.getInventory().getStack(i);
+         if (stack.getItem() instanceof PotionItem) {
+            PotionContentsComponent contents = stack.get(DataComponentTypes.POTION_CONTENTS);
+            if (contents != null) {
+               boolean hasHealing = false;
+               for (var e : contents.getEffects()) {
+                  if (e.getEffectType() == StatusEffects.INSTANT_HEALTH ||
+                      e.getEffectType() == StatusEffects.REGENERATION) {
+                     hasHealing = true;
+                     break;
+                  }
+               }
+               if (hasHealing) return i;
+            }
+         }
+      }
+      return -1;
+   }
+
+   private int findAnyPotion() {
+      for (int i = 0; i < 9; i++) {
+         ItemStack stack = mc.player.getInventory().getStack(i);
+         if (stack.getItem() instanceof PotionItem) {
+            return i;
+         }
+      }
+      return -1;
+   }
+
+   private int findOptimalTool() {
+      HitResult hit = mc.crosshairTarget;
+      if (hit instanceof BlockHitResult blockHit) {
+         Block block = mc.world.getBlockState(blockHit.getBlockPos()).getBlock();
+         int bestSlot = -1;
+         float bestSpeed = 1.0F;
+         for (int i = 0; i < 9; i++) {
+            ItemStack stack = mc.player.getInventory().getStack(i);
+            if (stack.isDamageable() && stack.getMaxDamage() - stack.getDamage() <= 5) {
+               continue;
+            }
+            float speed = stack.getMiningSpeedMultiplier(block.getDefaultState());
+            if (speed > bestSpeed) {
+               bestSpeed = speed;
+               bestSlot = i;
+            }
+         }
+         return bestSlot;
+      }
+      return -1;
    }
 
    public void onDisable() {
       this.previousSlot = -1;
+      this.switchedForAttack = false;
       super.onDisable();
    }
 }

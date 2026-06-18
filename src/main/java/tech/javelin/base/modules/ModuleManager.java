@@ -72,7 +72,7 @@ import tech.javelin.client.modules.impl.render.EntityESP;
 import tech.javelin.client.modules.impl.render.FullBright;
 import tech.javelin.client.modules.impl.render.Interface;
 import tech.javelin.client.modules.impl.render.Menu;
-import tech.javelin.client.modules.impl.render.NameTags;
+
 import tech.javelin.client.modules.impl.render.Removals;
 import tech.javelin.client.modules.impl.render.Predictions;
 import tech.javelin.client.modules.impl.render.SwingAnimation;
@@ -90,6 +90,7 @@ import tech.javelin.client.modules.impl.render.FireFly;
 import tech.javelin.client.modules.impl.render.Particles;
 import tech.javelin.client.modules.impl.render.WorldParticles;
 import tech.javelin.client.modules.impl.render.ClientSounds;
+import tech.javelin.client.modules.impl.render.Xray;
 import tech.javelin.client.modules.impl.combat.PacketCriticals;
 import tech.javelin.client.modules.impl.combat.SuperBow;
 import tech.javelin.client.modules.impl.combat.TriggerBot;
@@ -173,9 +174,9 @@ public final class ModuleManager implements IMinecraft {
       registerModule(FireFly.INSTANCE);
       registerModule(Particles.INSTANCE);
       registerModule(WorldParticles.INSTANCE);
-      registerModule(NameTags.INSTANCE);
       registerModule(Hands.INSTANCE);
       registerModule(AncientDebris.INSTANCE);
+      registerModule(Xray.INSTANCE);
       registerModule(ClientSounds.INSTANCE);
    }
 

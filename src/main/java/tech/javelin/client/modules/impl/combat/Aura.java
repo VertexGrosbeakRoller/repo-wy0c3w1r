@@ -424,6 +424,8 @@ public final class Aura extends Module {
    private boolean isCanAttack() {
       if (mc.player.getAttackCooldownProgress(0.5F) < 0.9F) {
          return false;
+      } else if (this.critsOnlyWithSpace.isEnabled() && (mc.player.isOnGround() || mc.player.getVelocity().y >= 0)) {
+         return false;
       } else if (!AttackUtil.canAttack()) {
          return false;
       } else if (this.target instanceof PlayerEntity && this.predictOnElytra.isEnabled() && mc.player.isGliding() && this.target.isGliding() && mc.player.getEyePos().distanceTo(PredictUtils.predict(this.target, this.target.getPos(), this.predict.getCurrent())) > 3.0D && mc.player.getEyePos().distanceTo(this.target.getBoundingBox().getCenter()) > 3.0D) {
@@ -545,24 +547,18 @@ public final class Aura extends Module {
    }
 
    private void applySnapRotation(Rotation targetAngle) {
-      boolean canAttack = mc.player.getAttackCooldownProgress(0.5F) >= 0.9F;
-      
-      if (!canAttack) {
-         // Only aim when attacking — keep current rotation when not attacking
+      if (!this.isCanAttack()) {
          return;
       }
       
-      // Quick snap to target on attack, no shake
-      float speed = 0.65f;
-      float yawDelta   = MathHelper.wrapDegrees(targetAngle.getYaw()   - this.lastYaw);
-      float pitchDelta = targetAngle.getPitch() - this.lastPitch;
-      float newYaw   = this.lastYaw   + yawDelta   * speed;
-      float newPitch = this.lastPitch + pitchDelta * speed;
-      newYaw   -= (newYaw   - this.lastYaw)   % Rotation.gcd();
+      // Instant snap to target — no interpolation, no shaking
+      float newYaw = targetAngle.getYaw();
+      float newPitch = MathHelper.clamp(targetAngle.getPitch(), -89f, 89f);
+      newYaw -= (newYaw - this.lastYaw) % Rotation.gcd();
       newPitch -= (newPitch - this.lastPitch) % Rotation.gcd();
-      Rotation rot = new Rotation(newYaw, MathHelper.clamp(newPitch, -89f, 89f));
+      Rotation rot = new Rotation(newYaw, newPitch);
       RotationComponent.update(rot, 360f, 360f, 360f, 360f, 0, 1, false);
-      this.lastYaw   = rot.getYaw();
+      this.lastYaw = rot.getYaw();
       this.lastPitch = rot.getPitch();
    }
 

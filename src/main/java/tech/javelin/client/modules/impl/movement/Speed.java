@@ -3,18 +3,25 @@ package tech.javelin.client.modules.impl.movement;
 import com.darkmagician6.eventapi.EventTarget;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.base.events.impl.player.EventMoveInput;
+import tech.javelin.base.events.impl.player.EventMotion;
+import tech.javelin.base.events.impl.player.EventOnMovePost;
 import tech.javelin.base.events.impl.player.EventUpdate;
+import tech.javelin.base.events.impl.server.EventPacket;
 import tech.javelin.client.modules.api.Category;
 import tech.javelin.client.modules.api.Module;
 import tech.javelin.client.modules.api.ModuleAnnotation;
 import tech.javelin.client.modules.api.setting.impl.BooleanSetting;
 import tech.javelin.client.modules.api.setting.impl.ModeSetting;
 import tech.javelin.client.modules.api.setting.impl.NumberSetting;
+import tech.javelin.utility.game.other.NetworkUtils;
+import tech.javelin.utility.game.other.TimerManager;
 import tech.javelin.utility.game.player.MovingUtil;
 import tech.javelin.utility.math.StopWatch;
 
@@ -23,7 +30,7 @@ import java.util.Random;
 @ModuleAnnotation(
    name = "Speed",
    category = Category.MOVEMENT,
-   description = "Speed module with strafe and collision modes"
+   description = "Speed module with strafe and ReallyWorld modes"
 )
 public class Speed extends Module {
     public static final Speed INSTANCE = new Speed();
@@ -49,6 +56,10 @@ public class Speed extends Module {
     
     private final Random rand = new Random();
     
+    // ReallyWorld fields
+    private int ticks = 0;
+    private int groundTicks = 0;
+    
     private Speed() {}
 
     @Override
@@ -60,14 +71,89 @@ public class Speed extends Module {
         rotationForce = 0;
         wasInAir = false;
         fallSpeed = 0;
+        ticks = 0;
+        groundTicks = 0;
         collisionTimer.reset();
         landTimer.reset();
     }
 
     @Override
     public void onDisable() {
+        TimerManager.resetTimer();
         if (mc.player != null) {
             mc.player.getAbilities().setWalkSpeed(0.1F);
+        }
+    }
+
+    @EventTarget
+    @Native
+    public void onMovePost(EventOnMovePost event) {
+        if (mc.player == null || mc.world == null) return;
+        if (!mode.is("ReallyWorld")) return;
+        
+        TimerManager.setTimer(1.7F);
+
+        if (ticks > 3) {
+            double bst = 0.03;
+            if (ticks % 2 == 0) {
+                Vec3d v = mc.player.getVelocity();
+                mc.player.setVelocity(v.x, v.y + 0.03, v.z);
+                if (mc.player.isOnGround()) {
+                    bst = 0.085;
+                } else {
+                    bst = 0.03;
+                }
+            }
+
+            double yaw = Math.toRadians(MovingUtil.getdir());
+            double xt = -Math.sin(yaw);
+            double zt = Math.cos(yaw);
+            if (MovingUtil.getdir() == -1.0F) {
+                xt = 0.0;
+                zt = 0.0;
+            }
+            Vec3d vel = mc.player.getVelocity();
+            mc.player.setVelocity(vel.x + xt * bst, vel.y, vel.z + zt * bst);
+        }
+
+        ticks++;
+    }
+
+    @EventTarget
+    @Native
+    public void onMoveInput(EventMoveInput event) {
+        if (mc.player == null || mc.world == null) return;
+        if (!mode.is("ReallyWorld")) return;
+        
+        if (mc.player.verticalCollision) groundTicks++;
+        else groundTicks = 0;
+
+        if (groundTicks >= 1) mc.player.jump();
+    }
+
+    @EventTarget
+    @Native
+    public void onMotion(EventMotion event) {
+        if (mc.player == null || mc.world == null) return;
+        if (!mode.is("ReallyWorld")) return;
+        
+        if (ticks % 2 == 0) {
+            TimerManager.setTimer(0.3F);
+            NetworkUtils.sendSilentPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
+        }
+    }
+
+    @EventTarget
+    @Native
+    public void onPacket(EventPacket event) {
+        if (mc.player == null || mc.world == null) return;
+        if (!mode.is("ReallyWorld")) return;
+        
+        if (event.getPacket() instanceof PlayerPositionLookS2CPacket) {
+            if (ticks % 2 == 1) {
+                ticks++;
+            }
+            TimerManager.setTimer(1.0F);
         }
     }
     
@@ -169,13 +255,6 @@ public class Speed extends Module {
                 }
                 MovingUtil.setVelocity(speed);
             }
-            
-        } else if (mode.is("ReallyWorld")) {
-            if (!hasMovement || !mc.player.isOnGround()) return;
-            
-            double speed = 0.26;
-            mc.player.jump();
-            MovingUtil.setVelocity(speed);
         }
     }
 }

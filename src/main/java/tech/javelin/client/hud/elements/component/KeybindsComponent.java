@@ -29,7 +29,7 @@ public class KeybindsComponent extends DraggableHudElement {
 
    // User-configurable via Interface module settings
    private float blurStrength = 12.0f;
-   private float bgOpacity = 0.85f;
+   private float bgOpacity = 0.6f;
 
    public KeybindsComponent(String name, float initialX, float initialY, float windowWidth, float windowHeight, float offsetX, float offsetY, DraggableHudElement.Align align) {
       super(name, initialX, initialY, windowWidth, windowHeight, offsetX, offsetY, align);
@@ -112,8 +112,8 @@ public class KeybindsComponent extends DraggableHudElement {
       // Icon from hudicons/keybinds.png (slightly smaller and higher)
       ctx.drawTexture(KEYBINDS_ICON, posX + 3, posY + 3.5F, 8, 8, theme.getColor().withAlpha(255.0F * this.alpha.getValue()));
 
-      // Title without separator
-      ctx.drawText(Fonts.SEMIBOLD.getFont(7.5F), "Hotkeys", posX + 14.5F, posY + 4.75F, (new ColorRGBA(-1)).withAlpha(255.0F * this.alpha.getValue()));
+      // Title — icon left, "Key Binds" right of icon
+      ctx.drawText(Fonts.SEMIBOLD.getFont(7.5F), "Key Binds", posX + 14.5F, posY + 4.75F, (new ColorRGBA(-1)).withAlpha(255.0F * this.alpha.getValue()));
 
       posY += 14.5F + 1.0F;
       float bindWidth = 0.0F;
@@ -166,10 +166,15 @@ public class KeybindsComponent extends DraggableHudElement {
 
             drawSolidBackground(ctx, posX, elementY, this.widthAnimation.getValue(), 11.0F, theme, elementAlpha);
 
-            // Module name on left, bind in brackets on right — no separator
-            ctx.drawText(Fonts.SEMIBOLD.getFont(7.0F), moduleName, posX + 5.0F, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
+            // Flowing gradient on active element
+            float gradientPhase = (System.currentTimeMillis() % 3000) / 3000.0F;
+            ColorRGBA gradientColor = getFlowingGradient(theme, gradientPhase, posY);
 
-            ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, posX + this.widthAnimation.getValue() - 3.0F - this.xLine.getValue() / 2.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F) / 2.0F, elementY + 3.25F, theme.getColor().withAlpha(elementAlpha * 255.0F));
+            // Module name on left, bind on right
+            float nameX = posX + 5.0F;
+            float bindX = posX + this.widthAnimation.getValue() - 5.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F);
+            ctx.drawText(Fonts.SEMIBOLD.getFont(7.0F), moduleName, nameX, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
+            ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, bindX, elementY + 3.25F, gradientColor.withAlpha(elementAlpha * 255.0F));
 
             if (elementsWidth > defaultWidth) {
                defaultWidth = elementsWidth;
@@ -192,9 +197,13 @@ public class KeybindsComponent extends DraggableHudElement {
 
                   drawSolidBackground(ctx, posX, elementY, this.widthAnimation.getValue(), 11.0F, theme, elementAlpha);
 
-                  ctx.drawText(Fonts.SEMIBOLD.getFont(7.0F), settingName, posX + 5.0F, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
+                  float gradPhase = (System.currentTimeMillis() % 3000) / 3000.0F;
+                  ColorRGBA gradColor = getFlowingGradient(theme, gradPhase, posY);
 
-                  ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, posX + this.widthAnimation.getValue() - 3.0F - this.xLine.getValue() / 2.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F) / 2.0F, elementY + 3.25F, theme.getColor().withAlpha(elementAlpha * 255.0F));
+                  float sNameX = posX + 5.0F;
+                  float sBindX = posX + this.widthAnimation.getValue() - 5.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F);
+                  ctx.drawText(Fonts.SEMIBOLD.getFont(7.0F), settingName, sNameX, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
+                  ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, sBindX, elementY + 3.25F, gradColor.withAlpha(elementAlpha * 255.0F));
 
                   if (elementsWidth > defaultWidth) {
                      defaultWidth = elementsWidth;
@@ -209,5 +218,21 @@ public class KeybindsComponent extends DraggableHudElement {
       this.widthAnimation.update(defaultWidth);
       this.width = this.widthAnimation.getValue();
       this.height = height;
+   }
+
+   private ColorRGBA getFlowingGradient(Theme theme, float phase, float y) {
+      float offset = (y / 100.0F) + phase;
+      offset = offset % 1.0F;
+      ColorRGBA base = theme.getColor();
+      int r = base.getRed();
+      int g = base.getGreen();
+      int b = base.getBlue();
+      float shift = (float) Math.sin(offset * Math.PI * 2) * 0.3F + 0.7F;
+      return new ColorRGBA(
+         (int)(r * shift),
+         (int)(g * shift),
+         (int)(b * shift),
+         base.getAlpha()
+      );
    }
 }
