@@ -60,70 +60,22 @@ public final class Particles extends Module {
    private final BooleanSetting useThemeColor = new BooleanSetting("Цвет темы", "Брать цвет из темы клиента", true);
    private final NumberSetting gravity = new NumberSetting("Гравитация", 0.05F, 0.0F, 0.2F, 0.01F);
    
-   // Particle texture selection - initialized with Default, updated later
-   private final ModeSetting particleTexture = new ModeSetting("Текстура", "Default", "Default");
+   // Particle texture selection from assets/javelin/Particle
+   private final ModeSetting particleTexture;
    
    private final List<CustomParticle> particles = new ArrayList<>();
    private final Random random = new Random();
    private final Map<String, Identifier> textureCache = new HashMap<>();
    private double lastX, lastY, lastZ;
    private int walkTicks = 0;
-   private boolean texturesLoaded = false;
+   
+   // Known particle textures from assets/javelin/Particle/
+   private static final String[] KNOWN_TEXTURES = {
+      "Default", "glow", "dollar", "star", "heart", "crown", "sparkle", "snowflake", "skull", "Copper"
+   };
    
    private Particles() {
-      // Delay texture loading until module is enabled
-   }
-   
-   private void loadTextureOptions() {
-      if (texturesLoaded) return;
-      texturesLoaded = true;
-      
-      // Add texture options to ModeSetting
-      String[] textures = getAvailableTextures();
-      for (String texture : textures) {
-         if (!texture.equals("Default")) {
-            new ModeSetting.Value(particleTexture, texture);
-         }
-      }
-   }
-   
-   private String[] getAvailableTextures() {
-      List<String> textures = new ArrayList<>();
-      textures.add("Default"); // Always have a default option
-      
-      // Check Particle folder
-      File particleFolder = new File("src/main/resources/assets/javelin/Particle");
-      if (particleFolder.exists() && particleFolder.isDirectory()) {
-         File[] files = particleFolder.listFiles((dir, name) -> 
-            name.toLowerCase().endsWith(".png") || 
-            name.toLowerCase().endsWith(".jpg") ||
-            name.toLowerCase().endsWith(".jpeg")
-         );
-         if (files != null) {
-            for (File file : files) {
-               textures.add(file.getName());
-            }
-         }
-      }
-      
-      // Also check the actual runtime location
-      File runtimeFolder = new File("assets/javelin/Particle");
-      if (runtimeFolder.exists() && runtimeFolder.isDirectory()) {
-         File[] files = runtimeFolder.listFiles((dir, name) -> 
-            name.toLowerCase().endsWith(".png") || 
-            name.toLowerCase().endsWith(".jpg") ||
-            name.toLowerCase().endsWith(".jpeg")
-         );
-         if (files != null) {
-            for (File file : files) {
-               if (!textures.contains(file.getName())) {
-                  textures.add(file.getName());
-               }
-            }
-         }
-      }
-      
-      return textures.toArray(new String[0]);
+      this.particleTexture = new ModeSetting("Текстура", KNOWN_TEXTURES);
    }
    
    public String getSelectedTexture() {
@@ -132,16 +84,15 @@ public final class Particles extends Module {
    
    private Identifier getTextureIdentifier(String textureName) {
       if (textureName.equals("Default")) {
-         return null; // Use color quads instead of texture
+         return null;
       }
       
-      // Check cache first
       if (textureCache.containsKey(textureName)) {
          return textureCache.get(textureName);
       }
       
-      // Create new identifier
-      Identifier id = Javelin.id("particle/" + textureName.replace(".png", "").replace(".jpg", "").replace(".jpeg", ""));
+      // Resources are at javelin:Particle/<name>.png
+      Identifier id = Identifier.of("javelin", "particle/" + textureName.toLowerCase());
       textureCache.put(textureName, id);
       return id;
    }
@@ -149,8 +100,6 @@ public final class Particles extends Module {
    @Override
    public void onEnable() {
       particles.clear();
-      // Load texture options when module is enabled
-      loadTextureOptions();
       if (mc.player != null) {
          lastX = mc.player.getX();
          lastY = mc.player.getY();
@@ -233,7 +182,7 @@ public final class Particles extends Module {
    
    @EventTarget
    public void onRender3D(EventRender3D event) {
-      if (particles.isEmpty()) return;
+      if (particles.isEmpty() || mc.player == null) return;
       
       String selectedTexture = particleTexture.get();
       Identifier textureId = getTextureIdentifier(selectedTexture);
@@ -243,9 +192,10 @@ public final class Particles extends Module {
       
       matrices.push();
       
-      GL11.glDisable(GL11.GL_DEPTH_TEST);
-      GL11.glEnable(GL11.GL_BLEND);
-      GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+      RenderSystem.enableBlend();
+      RenderSystem.defaultBlendFunc();
+      RenderSystem.disableCull();
+      RenderSystem.depthMask(false);
       
       Tessellator tessellator = Tessellator.getInstance();
       
@@ -274,7 +224,6 @@ public final class Particles extends Module {
          }
          
          BufferRenderer.drawWithGlobalProgram(buffer.end());
-         RenderSystem.setShaderTexture(0, 0);
       } else {
          // Render with colors (Default mode)
          RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
@@ -299,7 +248,9 @@ public final class Particles extends Module {
          BufferRenderer.drawWithGlobalProgram(buffer.end());
       }
       
-      GL11.glEnable(GL11.GL_DEPTH_TEST);
+      RenderSystem.depthMask(true);
+      RenderSystem.enableCull();
+      RenderSystem.disableBlend();
       matrices.pop();
    }
    

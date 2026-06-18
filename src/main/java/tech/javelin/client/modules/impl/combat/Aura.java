@@ -545,7 +545,15 @@ public final class Aura extends Module {
    }
 
    private void applySnapRotation(Rotation targetAngle) {
-      float speed = 0.35f;
+      boolean canAttack = mc.player.getAttackCooldownProgress(0.5F) >= 0.9F;
+      
+      if (!canAttack) {
+         // Only aim when attacking — keep current rotation when not attacking
+         return;
+      }
+      
+      // Quick snap to target on attack, no shake
+      float speed = 0.65f;
       float yawDelta   = MathHelper.wrapDegrees(targetAngle.getYaw()   - this.lastYaw);
       float pitchDelta = targetAngle.getPitch() - this.lastPitch;
       float newYaw   = this.lastYaw   + yawDelta   * speed;
@@ -562,6 +570,7 @@ public final class Aura extends Module {
    private static int funTimeHitCounter = 0;
    private static long funTimeLastHitTime = 0;
    private static boolean funTimeWasAttacking = false;
+   private static long funTimeLastHeadUp = 0;
 
    private void applyFunTimeRotation(Rotation targetAngle) {
       boolean canAttack = mc.player.getAttackCooldownProgress(0.5F) >= 0.9F;
@@ -576,12 +585,26 @@ public final class Aura extends Module {
       float deltaPitch = wrapTo180(targetPitch - currentPitch);
       float total = (float) Math.hypot(deltaYaw, deltaPitch);
 
-      // Защита от деления на ноль (NaN)
       if (total < 0.001f) {
+         // Even when idle, apply subtle shake
+         float shakeTime = nowMs / 500.0f;
+         float shakeYaw = 1.2f * (float) Math.sin(shakeTime * 2.0 * Math.PI);
+         float shakePitch = 0.4f * (float) Math.sin(shakeTime * 1.3 * Math.PI + 0.7);
+         
+         float nextYaw = currentYaw + shakeYaw;
+         float nextPitch = clamp(currentPitch + shakePitch, -89f, 90f);
+         
+         float gcd = Rotation.gcd();
+         nextYaw -= (nextYaw - currentYaw) % gcd;
+         nextPitch -= (nextPitch - currentPitch) % gcd;
+         
+         Rotation rot = new Rotation(nextYaw, nextPitch);
+         RotationComponent.update(rot, 360.0F, 360.0F, 360.0F, 360.0F, 0, 1, false);
+         this.lastYaw = rot.getYaw();
+         this.lastPitch = rot.getPitch();
          return;
       }
 
-      // cap 130° по прямой
       float maxStepYaw = (Math.abs(deltaYaw) / total) * 130f;
       float maxStepPitch = (Math.abs(deltaPitch) / total) * 130f;
 
@@ -591,47 +614,48 @@ public final class Aura extends Module {
       float nextYaw = currentYaw + stepYaw;
       float nextPitch = currentPitch + stepPitch;
 
-      // Детект реального удара (Rising Edge)
       boolean isNewHit = canAttack && !funTimeWasAttacking;
       if (isNewHit) {
          funTimeHitCounter++;
          funTimeLastHitTime = nowMs;
       }
-      funTimeWasAttacking = canAttack; // Обновляем стейт на следующий тик
+      funTimeWasAttacking = canAttack;
+
+      // Subtle L-R shake always (~2 times per second, small amplitude)
+      float shakeTime = nowMs / 500.0f;
+      float idleShakeYaw = 1.5f * (float) Math.sin(shakeTime * 2.0 * Math.PI);
+      float idleShakePitch = 0.5f * (float) Math.sin(shakeTime * 1.3 * Math.PI + 0.7);
+      nextYaw += idleShakeYaw;
+      nextPitch += idleShakePitch;
 
       if (canAttack) {
-         // attack: сглаживание 0.85
          nextYaw = lerp(0.85f, currentYaw, nextYaw);
          nextPitch = lerp(0.85f, currentPitch, nextPitch);
 
-         // Флик вниз каждый 86-й хит в окне 250 мс
-         // Условие hitCounter > 0 предотвращает флик на самом первом ударе
-         if (isNewHit && funTimeHitCounter % 86 == 0 && (nowMs - funTimeLastHitTime) < 250) {
-            nextPitch = -90f; // Свинг должен быть вызван снаружи
+         // Head up every 15 seconds instead of every 86 hits
+         if (funTimeLastHeadUp == 0) funTimeLastHeadUp = nowMs;
+         if (isNewHit && (nowMs - funTimeLastHeadUp) >= 15000) {
+            nextPitch = -90f;
+            funTimeLastHeadUp = nowMs;
          }
         
       } else {
-         // idle shake
          long sinceLastHit = nowMs - funTimeLastHitTime;
         
          if (sinceLastHit >= 535) {
-            // Лимит 45°, применяем джиттер
-            float shakeYaw = (18f + (float) Math.random() * 10f) * (float) Math.sin(nowMs / 60.0);
-            float shakePitch = (6f + (float) Math.random() * 10f) * (float) Math.cos(nowMs / 60.0);
+            float shakeYaw = 3.0f * (float) Math.sin(nowMs / 300.0);
+            float shakePitch = 1.0f * (float) Math.cos(nowMs / 400.0);
           
-            nextYaw = clamp(currentYaw + shakeYaw, currentYaw - 45f, currentYaw + 45f);
-            nextPitch = clamp(currentPitch + shakePitch, currentPitch - 45f, currentPitch + 45f);
+            nextYaw = currentYaw + shakeYaw;
+            nextPitch = currentPitch + shakePitch;
          } else {
-            // Лимит 0° - жестко держим натуральный взгляд
             nextYaw = currentYaw;
             nextPitch = currentPitch;
          }
       }
 
-      // Глобальный кламп pitch ДО GCD-снапа (иначе бан за illegal pitch)
       nextPitch = clamp(nextPitch, -89f, 90f);
 
-      // GCD Snap
       float gcd = Rotation.gcd();
       nextYaw -= (nextYaw - currentYaw) % gcd;
       nextPitch -= (nextPitch - currentPitch) % gcd;

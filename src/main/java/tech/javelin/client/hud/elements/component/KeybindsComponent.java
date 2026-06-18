@@ -2,6 +2,7 @@ package tech.javelin.client.hud.elements.component;
 
 import java.util.Iterator;
 import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.util.Identifier;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.Javelin;
 import tech.javelin.base.animations.base.Animation;
@@ -23,8 +24,12 @@ public class KeybindsComponent extends DraggableHudElement {
    private final Animation xLine;
    private final Animation alpha;
 
-   private static final float BLUR_STRENGTH = 15.0f;
    private static final float CORNER_RADIUS = 2.25f;
+   private static final Identifier KEYBINDS_ICON = Identifier.of("javelin", "hudicons/keybinds.png");
+
+   // User-configurable via Interface module settings
+   private float blurStrength = 12.0f;
+   private float bgOpacity = 0.85f;
 
    public KeybindsComponent(String name, float initialX, float initialY, float windowWidth, float windowHeight, float offsetX, float offsetY, DraggableHudElement.Align align) {
       super(name, initialX, initialY, windowWidth, windowHeight, offsetX, offsetY, align);
@@ -33,22 +38,21 @@ public class KeybindsComponent extends DraggableHudElement {
       this.alpha = new Animation(200L, Easing.CUBIC_OUT);
    }
 
-   private void drawBlurBackground(CustomDrawContext ctx, float x, float y, float width, float height, Theme theme, float animation) {
+   public void setBlurStrength(float strength) { this.blurStrength = strength; }
+   public void setBgOpacity(float opacity) { this.bgOpacity = opacity; }
 
-      DrawUtil.drawBlur(
-              ctx.getMatrices(), x, y, width, height,
-              BLUR_STRENGTH,
-              BorderRadius.all(CORNER_RADIUS),
-              new ColorRGBA(255, 255, 255, (int)(animation * 255))
-      );
+   private void drawSolidBackground(CustomDrawContext ctx, float x, float y, float width, float height, Theme theme, float animation) {
+      if (blurStrength > 0) {
+         DrawUtil.drawBlur(
+                 ctx.getMatrices(), x, y, width, height,
+                 blurStrength,
+                 BorderRadius.all(CORNER_RADIUS),
+                 new ColorRGBA(255, 255, 255, (int)(animation * 255))
+         );
+      }
 
-      ColorRGBA themeColor = theme.getColor();
-      ColorRGBA backgroundColor = new ColorRGBA(
-              (int) (Math.min(255, Math.max(0, themeColor.getRed() * 0.15f))),
-              (int) (Math.min(255, Math.max(0, themeColor.getGreen() * 0.15f))),
-              (int) (Math.min(255, Math.max(0, themeColor.getBlue() * 0.15f))),
-              (int)(64 * animation)
-      );
+      // Solid dark background
+      ColorRGBA backgroundColor = new ColorRGBA(15, 15, 15, (int)(bgOpacity * 255 * animation));
 
       DrawUtil.drawRoundedRect(
               ctx.getMatrices(), x, y, width, height,
@@ -103,15 +107,15 @@ public class KeybindsComponent extends DraggableHudElement {
 
       Theme theme = Javelin.getInstance().getThemeManager().getCurrentTheme();
 
-      drawBlurBackground(ctx, posX, posY, this.widthAnimation.getValue(), 14.5F, theme, this.alpha.getValue());
+      drawSolidBackground(ctx, posX, posY, this.widthAnimation.getValue(), 14.5F, theme, this.alpha.getValue());
 
-      ctx.drawText(Fonts.ICONS.getFont(10.0F), "C", posX + 4.25F, posY + 5.5F, theme.getColor().withAlpha(255.0F * this.alpha.getValue()));
+      // Icon from hudicons/keybinds.png (slightly smaller and higher)
+      ctx.drawTexture(KEYBINDS_ICON, posX + 3, posY + 3.5F, 8, 8, theme.getColor().withAlpha(255.0F * this.alpha.getValue()));
 
-      ctx.drawText(Fonts.SEMIBOLD.getFont(7.0F), " |", posX + 15.0F, posY + 4.75F, new ColorRGBA(166, 166, 166, 255.0F * this.alpha.getValue()));
+      // Title without separator
+      ctx.drawText(Fonts.SEMIBOLD.getFont(7.5F), "Hotkeys", posX + 14.5F, posY + 4.75F, (new ColorRGBA(-1)).withAlpha(255.0F * this.alpha.getValue()));
 
-      ctx.drawText(Fonts.SEMIBOLD.getFont(7.5F), "Hotkeys", posX + 20.5F, posY + 4.75F, (new ColorRGBA(-1)).withAlpha(255.0F * this.alpha.getValue()));
-
-      posY += 14.5F + 1.0F; // Добавлен отступ после заголовка
+      posY += 14.5F + 1.0F;
       float bindWidth = 0.0F;
       Iterator var9 = Javelin.getInstance().getModuleManager().getModules().iterator();
 
@@ -122,7 +126,8 @@ public class KeybindsComponent extends DraggableHudElement {
             continue;
          }
          if (module.getAnimation().getValue() != 0.0F && module.getKeyCode() != -1) {
-            float localBindWidth = Fonts.SEMIBOLD.getWidth(Keyboard.getKeyName(module.getKeyCode()), 6.75F);
+            String bindText = "[" + Keyboard.getKeyName(module.getKeyCode()) + "]";
+            float localBindWidth = Fonts.SEMIBOLD.getWidth(bindText, 6.75F);
             if (localBindWidth > bindWidth) {
                bindWidth = localBindWidth;
             }
@@ -132,7 +137,8 @@ public class KeybindsComponent extends DraggableHudElement {
             if (setting instanceof BooleanSetting) {
                BooleanSetting boolSetting = (BooleanSetting) setting;
                if (boolSetting.getAnimation().getValue() != 0.0F && boolSetting.getKeyCode() != -1) {
-                  float localBindWidth = Fonts.SEMIBOLD.getWidth(Keyboard.getKeyName(boolSetting.getKeyCode()), 6.75F);
+                  String bindText = "[" + Keyboard.getKeyName(boolSetting.getKeyCode()) + "]";
+                  float localBindWidth = Fonts.SEMIBOLD.getWidth(bindText, 6.75F);
                   if (localBindWidth > bindWidth) {
                      bindWidth = localBindWidth;
                   }
@@ -150,56 +156,51 @@ public class KeybindsComponent extends DraggableHudElement {
             continue;
          }
          if (module.getAnimation().getValue() != 0.0F && module.getKeyCode() != -1) {
-            height += 11.0F + 1.0F; // Добавлен отступ 1.5F
-            String bind = Keyboard.getKeyName(module.getKeyCode());
+            height += 11.0F + 1.0F;
+            String bind = "[" + Keyboard.getKeyName(module.getKeyCode()) + "]";
             String moduleName = module.getName();
-            float elementsWidth = Fonts.SEMIBOLD.getWidth(moduleName, 7.0F) + Fonts.SEMIBOLD.getWidth(bind, 6.75F) + 50.0F;
+            float elementsWidth = Fonts.SEMIBOLD.getWidth(moduleName, 7.0F) + Fonts.SEMIBOLD.getWidth(bind, 6.75F) + 45.0F;
 
             float elementAlpha = module.getAnimation().getValue() * this.alpha.getValue();
             float elementY = posY + module.getAnimation().getValue() * 3.0F - 3.0F;
 
-            drawBlurBackground(ctx, posX, elementY, this.widthAnimation.getValue(), 11.0F, theme, elementAlpha);
+            drawSolidBackground(ctx, posX, elementY, this.widthAnimation.getValue(), 11.0F, theme, elementAlpha);
 
-            float separatorX = posX + this.widthAnimation.getValue() - 6.0F - this.xLine.getValue();
-            ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), "|", separatorX, elementY + 3.25F, new ColorRGBA(166, 166, 166, 255.0F * elementAlpha));
-
+            // Module name on left, bind in brackets on right — no separator
             ctx.drawText(Fonts.SEMIBOLD.getFont(7.0F), moduleName, posX + 5.0F, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
 
-            ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, posX + this.widthAnimation.getValue() - 3.0F - this.xLine.getValue() / 2.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F) / 2.0F, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
+            ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, posX + this.widthAnimation.getValue() - 3.0F - this.xLine.getValue() / 2.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F) / 2.0F, elementY + 3.25F, theme.getColor().withAlpha(elementAlpha * 255.0F));
 
             if (elementsWidth > defaultWidth) {
                defaultWidth = elementsWidth;
             }
 
-            posY += (11.0F + 1.0F) * module.getAnimation().getValue(); // Добавлен отступ 1.5F
+            posY += (11.0F + 1.0F) * module.getAnimation().getValue();
          }
 
          for (Setting setting : module.getSettings()) {
             if (setting instanceof BooleanSetting) {
                BooleanSetting boolSetting = (BooleanSetting) setting;
                if (boolSetting.getAnimation().getValue() != 0.0F && boolSetting.getKeyCode() != -1) {
-                  height += 11.0F + 1.0F; // Добавлен отступ 1.5F
-                  String bind = Keyboard.getKeyName(boolSetting.getKeyCode());
+                  height += 11.0F + 1.0F;
+                  String bind = "[" + Keyboard.getKeyName(boolSetting.getKeyCode()) + "]";
                   String settingName = boolSetting.getName();
-                  float elementsWidth = Fonts.SEMIBOLD.getWidth(settingName, 7.0F) + Fonts.SEMIBOLD.getWidth(bind, 6.75F) + 50.0F;
+                  float elementsWidth = Fonts.SEMIBOLD.getWidth(settingName, 7.0F) + Fonts.SEMIBOLD.getWidth(bind, 6.75F) + 45.0F;
 
                   float elementAlpha = boolSetting.getAnimation().getValue() * this.alpha.getValue();
                   float elementY = posY + boolSetting.getAnimation().getValue() * 3.0F - 3.0F;
 
-                  drawBlurBackground(ctx, posX, elementY, this.widthAnimation.getValue(), 11.0F, theme, elementAlpha);
-
-                  float separatorX = posX + this.widthAnimation.getValue() - 6.0F - this.xLine.getValue();
-                  ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), "|", separatorX, elementY + 3.25F, new ColorRGBA(166, 166, 166, 255.0F * elementAlpha));
+                  drawSolidBackground(ctx, posX, elementY, this.widthAnimation.getValue(), 11.0F, theme, elementAlpha);
 
                   ctx.drawText(Fonts.SEMIBOLD.getFont(7.0F), settingName, posX + 5.0F, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
 
-                  ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, posX + this.widthAnimation.getValue() - 3.0F - this.xLine.getValue() / 2.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F) / 2.0F, elementY + 3.25F, (new ColorRGBA(-1)).withAlpha(elementAlpha * 255.0F));
+                  ctx.drawText(Fonts.SEMIBOLD.getFont(6.5F), bind, posX + this.widthAnimation.getValue() - 3.0F - this.xLine.getValue() / 2.0F - Fonts.SEMIBOLD.getWidth(bind, 6.75F) / 2.0F, elementY + 3.25F, theme.getColor().withAlpha(elementAlpha * 255.0F));
 
                   if (elementsWidth > defaultWidth) {
                      defaultWidth = elementsWidth;
                   }
 
-                  posY += (11.0F + 1.0F) * boolSetting.getAnimation().getValue(); // Добавлен отступ 1.5F
+                  posY += (11.0F + 1.0F) * boolSetting.getAnimation().getValue();
                }
             }
          }

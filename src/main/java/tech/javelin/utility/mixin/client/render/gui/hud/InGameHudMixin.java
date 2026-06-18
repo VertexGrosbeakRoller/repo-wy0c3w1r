@@ -14,6 +14,7 @@ import tech.javelin.base.events.impl.render.EventRender2D;
 import tech.javelin.client.modules.api.Module;
 import tech.javelin.client.modules.impl.render.Crosshair;
 import tech.javelin.client.modules.impl.render.Interface;
+import tech.javelin.client.modules.impl.render.Removals;
 import tech.javelin.utility.interfaces.IMinecraft;
 import tech.javelin.utility.render.display.base.CustomDrawContext;
 
@@ -111,8 +112,22 @@ public abstract class InGameHudMixin {
       Interface interfaceModule = Interface.INSTANCE;
       if (interfaceModule.isEnabled() && interfaceModule.isEnableScoreBar()) {
          ci.cancel();
+         return;
       }
+      if (Removals.INSTANCE.isRemoveScoreboard()) {
+         ci.cancel();
+      }
+   }
 
+   @Inject(
+      method = {"renderStatusEffectOverlay"},
+      at = {@At("HEAD")},
+      cancellable = true
+   )
+   private void onRenderStatusEffects(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+      if (Removals.INSTANCE.isRemoveHealthEffect()) {
+         ci.cancel();
+      }
    }
 
    @ModifyVariable(
@@ -129,5 +144,16 @@ public abstract class InGameHudMixin {
       }
 
       return original;
+   }
+
+   @Inject(
+      method = {"renderVignetteOverlay"},
+      at = {@At("HEAD")},
+      cancellable = true
+   )
+   private void onRenderVignette(DrawContext context, CallbackInfo ci) {
+      if (Removals.INSTANCE.isRemoveVignette()) {
+         ci.cancel();
+      }
    }
 }

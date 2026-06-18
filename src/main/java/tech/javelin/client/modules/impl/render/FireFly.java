@@ -1,6 +1,7 @@
 package tech.javelin.client.modules.impl.render;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.ShaderProgramKeys;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
@@ -175,12 +176,15 @@ public class FireFly extends Module {
 
         matrices.push();
         
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+        RenderSystem.depthMask(false);
+        RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
+        
         // Setup for lines
         if (connectLines.isEnabled()) {
-            GL11.glDisable(GL11.GL_DEPTH_TEST);
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            GL11.glLineWidth(lineWidth.getCurrent());
+            RenderSystem.lineWidth(lineWidth.getCurrent());
             
             Tessellator tessellator = Tessellator.getInstance();
             BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.LINES, VertexFormats.POSITION_COLOR);
@@ -206,7 +210,6 @@ public class FireFly extends Module {
             }
             
             BufferRenderer.drawWithGlobalProgram(buffer.end());
-            GL11.glEnable(GL11.GL_DEPTH_TEST);
         }
 
         // Draw particles as small quads
@@ -218,20 +221,23 @@ public class FireFly extends Module {
             double y = particle.y - camera.y;
             double z = particle.z - camera.z;
             int alpha = (int) (particle.alpha * particle.color.getAlpha());
-            float size = particle.size / 10.0f;
+            float pSize = particle.size / 10.0f;
             
             int r = particle.color.getRed();
             int g = particle.color.getGreen();
             int b = particle.color.getBlue();
             
-            // Draw small square for particle
-            buffer.vertex((float)(x - size), (float)(y - size), (float)z).color(r, g, b, alpha);
-            buffer.vertex((float)(x + size), (float)(y - size), (float)z).color(r, g, b, alpha);
-            buffer.vertex((float)(x + size), (float)(y + size), (float)z).color(r, g, b, alpha);
-            buffer.vertex((float)(x - size), (float)(y + size), (float)z).color(r, g, b, alpha);
+            buffer.vertex((float)(x - pSize), (float)(y - pSize), (float)z).color(r, g, b, alpha);
+            buffer.vertex((float)(x + pSize), (float)(y - pSize), (float)z).color(r, g, b, alpha);
+            buffer.vertex((float)(x + pSize), (float)(y + pSize), (float)z).color(r, g, b, alpha);
+            buffer.vertex((float)(x - pSize), (float)(y + pSize), (float)z).color(r, g, b, alpha);
         }
         
         BufferRenderer.drawWithGlobalProgram(buffer.end());
+        
+        RenderSystem.depthMask(true);
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
         matrices.pop();
     }
 }

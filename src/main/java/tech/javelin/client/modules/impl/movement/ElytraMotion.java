@@ -95,39 +95,54 @@ public class ElytraMotion extends Module {
       
       Vec3d velocity = mc.player.getVelocity();
       
-      // Буст если падаем
-      if (velocity.y < -0.3) {
-         fireworkTick = 0;
-         return true;
-      }
-      
-      // Буст если есть цель и не приближаемся к ней (застряли)
+      // Check if target from Aura exists
       Entity auraTarget = Aura.INSTANCE.getTarget();
       if (auraTarget != null && auraTarget.isAlive()) {
          double dist = mc.player.distanceTo(auraTarget);
          
-         stuckCheckTicks++;
-         if (stuckCheckTicks >= 10) { // Проверка каждые 10 тиков (0.5 сек)
-            stuckCheckTicks = 0;
+         // If close to target (< 5 blocks) — hover/slow down, don't boost
+         if (dist < 5.0) {
+            // Slow down by reducing velocity when near target
+            Vec3d toTarget = auraTarget.getPos().subtract(mc.player.getPos()).normalize();
+            double currentSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
             
-            // Проверяем приблизились ли мы
-            double moved = Math.abs(mc.player.getX() - lastPosX) + Math.abs(mc.player.getZ() - lastPosZ);
-            
-            if (moved < 0.5) { // Не двигаемся - застряли
-               stuckCount++;
-               if (stuckCount >= 2) { // Застряли 2 проверки подряд
-                  stuckCount = 0;
-                  fireworkTick = 0;
-                  return true;
-               }
+            if (currentSpeed > 0.3) {
+               // Apply braking — reduce horizontal velocity
+               mc.player.setVelocity(
+                  velocity.x * 0.7,
+                  Math.max(velocity.y, -0.05), // Don't fall fast
+                  velocity.z * 0.7
+               );
             } else {
-               stuckCount = 0;
+               // Hover — maintain altitude
+               mc.player.setVelocity(
+                  toTarget.x * 0.05,
+                  velocity.y > -0.02 ? velocity.y : velocity.y + 0.04,
+                  toTarget.z * 0.05
+               );
             }
-            
-            lastPosX = mc.player.getX();
-            lastPosY = mc.player.getY();
-            lastPosZ = mc.player.getZ();
+            return false; // Don't boost when near target
          }
+         
+         // Target is far — chase it, boost if needed
+         if (dist > 8.0) {
+            fireworkTick = 0;
+            return true;
+         }
+         
+         // Medium range — boost only if falling
+         if (velocity.y < -0.3) {
+            fireworkTick = 0;
+            return true;
+         }
+         
+         return false;
+      }
+      
+      // No target — default behavior: boost if falling
+      if (velocity.y < -0.3) {
+         fireworkTick = 0;
+         return true;
       }
       
       return false;

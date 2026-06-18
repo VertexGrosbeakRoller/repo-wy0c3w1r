@@ -2,6 +2,7 @@ package tech.javelin.client.modules.impl.player;
 
 import com.darkmagician6.eventapi.EventTarget;
 import net.minecraft.block.Block;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import ru.nexusguard.protection.annotations.Native;
@@ -9,6 +10,8 @@ import tech.javelin.base.events.impl.player.EventUpdate;
 import tech.javelin.client.modules.api.Category;
 import tech.javelin.client.modules.api.Module;
 import tech.javelin.client.modules.api.ModuleAnnotation;
+import tech.javelin.client.modules.api.setting.impl.BooleanSetting;
+import tech.javelin.client.modules.api.setting.impl.ModeSetting;
 
 @ModuleAnnotation(
    name = "AutoTool",
@@ -18,6 +21,10 @@ import tech.javelin.client.modules.api.ModuleAnnotation;
 public final class AutoTool extends Module {
    public static final AutoTool INSTANCE = new AutoTool();
    private int previousSlot = -1;
+   
+   private final ModeSetting mode = new ModeSetting("Режим", "Умный", "Обычный", "Умный");
+   private final BooleanSetting returnBack = new BooleanSetting("Возвращать слот", "Возвращать предыдущий слот после копания", true);
+   private final BooleanSetting durabilityCheck = new BooleanSetting("Проверка прочности", "Не использовать инструмент с низкой прочностью", true);
 
    private AutoTool() {
    }
@@ -35,7 +42,7 @@ public final class AutoTool extends Module {
             if (toolSlot != -1) {
                mc.player.getInventory().selectedSlot = toolSlot;
             }
-         } else if (this.previousSlot != -1) {
+         } else if (this.previousSlot != -1 && returnBack.isEnabled()) {
             mc.player.getInventory().selectedSlot = this.previousSlot;
             this.previousSlot = -1;
          }
@@ -65,6 +72,15 @@ public final class AutoTool extends Module {
       float bestSpeed = 1.0F;
 
       for(int i = 0; i < 9; ++i) {
+         ItemStack stack = mc.player.getInventory().getStack(i);
+         
+         // Smart mode: skip items with low durability
+         if (mode.is("Умный") && durabilityCheck.isEnabled()) {
+            if (stack.isDamageable() && stack.getMaxDamage() - stack.getDamage() <= 5) {
+               continue;
+            }
+         }
+         
          float speed = this.getMiningSpeed(i, block);
          if (speed > bestSpeed) {
             bestSpeed = speed;
