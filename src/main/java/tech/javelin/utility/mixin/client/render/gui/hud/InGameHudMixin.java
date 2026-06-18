@@ -151,7 +151,7 @@ public abstract class InGameHudMixin {
       at = {@At("HEAD")},
       cancellable = true
    )
-   private void onRenderVignette(DrawContext context, CallbackInfo ci) {
+   private void onRenderVignette(DrawContext context, net.minecraft.entity.Entity entity, CallbackInfo ci) {
       if (Removals.INSTANCE.isRemoveVignette()) {
          ci.cancel();
       }
