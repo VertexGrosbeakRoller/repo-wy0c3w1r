@@ -38,15 +38,22 @@ public class GrimGlide extends Module {
         ++ticksTwo;
         Vec3d pos = mc.player.getPos();
         float yaw = mc.player.getYaw();
+        float pitch = mc.player.getPitch();
         double forward = mc.player.age % 2 == 0 ? 0.087D : 0.09D;
         double dx = -Math.sin(Math.toRadians(yaw)) * forward;
         double dz = Math.cos(Math.toRadians(yaw)) * forward;
 
-        mc.player.setPosition(pos.getX() + dx, pos.getY(), pos.getZ() + dz);
+        // Vertical: if looking up (pitch < 0), fly upward proportionally
+        double dy = 0;
+        if (pitch < -5) {
+            dy = (-pitch / 90.0) * 0.06;
+        }
+
+        mc.player.setPosition(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz);
         ticks.reset();
 
         if (ticks.getElapsedTime() >= 40) {
-            double yVel = mc.player.getVelocity().y + 0.00600000075995922D;
+            double yVel = mc.player.getVelocity().y + 0.00600000075995922D + dy;
             mc.player.setVelocity(
                     dx * (double) ThreadLocalRandom.current().nextFloat(1.001F, 1.0021F),
                     yVel,

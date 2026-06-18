@@ -16,7 +16,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.Javelin;
 import tech.javelin.base.events.impl.player.EventTotemPop;
@@ -30,7 +29,6 @@ import tech.javelin.client.modules.api.setting.impl.ModeSetting;
 import tech.javelin.client.modules.api.setting.impl.NumberSetting;
 import tech.javelin.utility.render.display.base.color.ColorRGBA;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -91,8 +89,8 @@ public final class Particles extends Module {
          return textureCache.get(textureName);
       }
       
-      // Resources are at javelin:Particle/<name>.png
-      Identifier id = Identifier.of("javelin", "particle/" + textureName.toLowerCase());
+      // Resources are at assets/javelin/textures/particle/<name>.png
+      Identifier id = Identifier.of("javelin", "textures/particle/" + textureName.toLowerCase() + ".png");
       textureCache.put(textureName, id);
       return id;
    }
@@ -198,66 +196,77 @@ public final class Particles extends Module {
       
       MatrixStack matrices = event.getMatrix();
       Vec3d camera = mc.gameRenderer.getCamera().getPos();
+      float camYaw = mc.gameRenderer.getCamera().getYaw();
+      float camPitch = mc.gameRenderer.getCamera().getPitch();
+      
+      // Billboard vectors
+      float yawRad = (float) Math.toRadians(-camYaw);
+      float pitchRad = (float) Math.toRadians(-camPitch);
+      float cosYaw = MathHelper.cos(yawRad);
+      float sinYaw = MathHelper.sin(yawRad);
+      float cosPitch = MathHelper.cos(pitchRad);
+      float sinPitch = MathHelper.sin(pitchRad);
+      float rx = cosYaw, ry = 0, rz = sinYaw;
+      float ux = sinYaw * sinPitch, uy = cosPitch, uz = -cosYaw * sinPitch;
       
       matrices.push();
       
       RenderSystem.enableBlend();
       RenderSystem.defaultBlendFunc();
       RenderSystem.disableCull();
+      RenderSystem.disableDepthTest();
       RenderSystem.depthMask(false);
       
       Tessellator tessellator = Tessellator.getInstance();
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
       
       if (textureId != null) {
-         // Render with texture
          RenderSystem.setShader(ShaderProgramKeys.POSITION_TEX_COLOR);
          RenderSystem.setShaderTexture(0, textureId);
          BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
          
          for (CustomParticle particle : particles) {
-            double x = particle.x - camera.x;
-            double y = particle.y - camera.y;
-            double z = particle.z - camera.z;
+            float x = (float)(particle.x - camera.x);
+            float y = (float)(particle.y - camera.y);
+            float z = (float)(particle.z - camera.z);
             
             float alpha = particle.getAlpha();
-            float size = particle.size;
+            float s = particle.size;
             ColorRGBA color = particle.color;
             int colorInt = color.withAlpha((int)(alpha * 255)).getRGB();
             
-            Matrix4f matrix = matrices.peek().getPositionMatrix();
-            // Billboarding - particles always face camera
-            buffer.vertex(matrix, (float)(x - size), (float)(y - size), (float)z).texture(0, 1).color(colorInt);
-            buffer.vertex(matrix, (float)(x + size), (float)(y - size), (float)z).texture(1, 1).color(colorInt);
-            buffer.vertex(matrix, (float)(x + size), (float)(y + size), (float)z).texture(1, 0).color(colorInt);
-            buffer.vertex(matrix, (float)(x - size), (float)(y + size), (float)z).texture(0, 0).color(colorInt);
+            buffer.vertex(matrix, x - rx*s - ux*s, y - ry*s - uy*s, z - rz*s - uz*s).texture(0, 1).color(colorInt);
+            buffer.vertex(matrix, x + rx*s - ux*s, y + ry*s - uy*s, z + rz*s - uz*s).texture(1, 1).color(colorInt);
+            buffer.vertex(matrix, x + rx*s + ux*s, y + ry*s + uy*s, z + rz*s + uz*s).texture(1, 0).color(colorInt);
+            buffer.vertex(matrix, x - rx*s + ux*s, y - ry*s + uy*s, z - rz*s + uz*s).texture(0, 0).color(colorInt);
          }
          
          BufferRenderer.drawWithGlobalProgram(buffer.end());
       } else {
-         // Render with colors (Default mode)
          RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
          BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
          
          for (CustomParticle particle : particles) {
-            double x = particle.x - camera.x;
-            double y = particle.y - camera.y;
-            double z = particle.z - camera.z;
+            float x = (float)(particle.x - camera.x);
+            float y = (float)(particle.y - camera.y);
+            float z = (float)(particle.z - camera.z);
             
             float alpha = particle.getAlpha();
-            float size = particle.size;
+            float s = particle.size;
             ColorRGBA color = particle.color;
+            int a = (int)(alpha * 255);
             
-            Matrix4f matrix = matrices.peek().getPositionMatrix();
-            buffer.vertex(matrix, (float)(x - size), (float)(y - size), (float)z).color(color.getRed(), color.getGreen(), color.getBlue(), (int)(alpha * 255));
-            buffer.vertex(matrix, (float)(x + size), (float)(y - size), (float)z).color(color.getRed(), color.getGreen(), color.getBlue(), (int)(alpha * 255));
-            buffer.vertex(matrix, (float)(x + size), (float)(y + size), (float)z).color(color.getRed(), color.getGreen(), color.getBlue(), (int)(alpha * 255));
-            buffer.vertex(matrix, (float)(x - size), (float)(y + size), (float)z).color(color.getRed(), color.getGreen(), color.getBlue(), (int)(alpha * 255));
+            buffer.vertex(matrix, x - rx*s - ux*s, y - ry*s - uy*s, z - rz*s - uz*s).color(color.getRed(), color.getGreen(), color.getBlue(), a);
+            buffer.vertex(matrix, x + rx*s - ux*s, y + ry*s - uy*s, z + rz*s - uz*s).color(color.getRed(), color.getGreen(), color.getBlue(), a);
+            buffer.vertex(matrix, x + rx*s + ux*s, y + ry*s + uy*s, z + rz*s + uz*s).color(color.getRed(), color.getGreen(), color.getBlue(), a);
+            buffer.vertex(matrix, x - rx*s + ux*s, y - ry*s + uy*s, z - rz*s + uz*s).color(color.getRed(), color.getGreen(), color.getBlue(), a);
          }
          
          BufferRenderer.drawWithGlobalProgram(buffer.end());
       }
       
       RenderSystem.depthMask(true);
+      RenderSystem.enableDepthTest();
       RenderSystem.enableCull();
       RenderSystem.disableBlend();
       matrices.pop();

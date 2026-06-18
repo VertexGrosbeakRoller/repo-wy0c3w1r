@@ -96,44 +96,15 @@ public class ElytraMotion extends Module {
       
       Vec3d velocity = mc.player.getVelocity();
       
-      // Check if target from Aura exists
+      // Check if target from Aura exists — Air Stuck style hover
       Entity auraTarget = Aura.INSTANCE.getTarget();
       if (auraTarget != null && auraTarget.isAlive()) {
          double dist = mc.player.distanceTo(auraTarget);
          
-         // If close to target (< 6 blocks) — hover in place near them
+         // If close to target (< 6 blocks) — Air Stuck: freeze in place
          if (dist < 6.0) {
-            Vec3d targetPos = auraTarget.getPos();
-            Vec3d playerPos = mc.player.getPos();
-            
-            // Calculate desired hover position slightly above target
-            double desiredY = targetPos.y + 1.5;
-            double yDiff = desiredY - playerPos.y;
-            
-            // Vertical: hold altitude near target
-            double vy = MathHelper.clamp(yDiff * 0.15, -0.1, 0.1);
-            
-            // Horizontal: orbit/stay near target at ~3 blocks distance
-            Vec3d toTarget = targetPos.subtract(playerPos);
-            double horizDist = Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z);
-            
-            double vx, vz;
-            if (horizDist > 4.0) {
-               // Move toward target
-               vx = (toTarget.x / horizDist) * 0.12;
-               vz = (toTarget.z / horizDist) * 0.12;
-            } else if (horizDist < 2.0) {
-               // Move away from target slightly
-               vx = -(toTarget.x / Math.max(horizDist, 0.1)) * 0.05;
-               vz = -(toTarget.z / Math.max(horizDist, 0.1)) * 0.05;
-            } else {
-               // Hold position — brake
-               vx = velocity.x * 0.4;
-               vz = velocity.z * 0.4;
-            }
-            
-            mc.player.setVelocity(vx, vy, vz);
-            return false; // Don't boost when hovering near target
+            mc.player.setVelocity(0, 0, 0);
+            return false;
          }
          
          // Target is far — chase it, boost

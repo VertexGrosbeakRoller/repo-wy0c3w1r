@@ -149,6 +149,21 @@ public class FireFly extends Module {
 
     private void renderParticles(MatrixStack matrices) {
         Vec3d camera = mc.gameRenderer.getCamera().getPos();
+        float camYaw = mc.gameRenderer.getCamera().getYaw();
+        float camPitch = mc.gameRenderer.getCamera().getPitch();
+
+        // Calculate billboard right/up vectors from camera rotation
+        float yawRad = (float) Math.toRadians(-camYaw);
+        float pitchRad = (float) Math.toRadians(-camPitch);
+        float cosYaw = MathHelper.cos(yawRad);
+        float sinYaw = MathHelper.sin(yawRad);
+        float cosPitch = MathHelper.cos(pitchRad);
+        float sinPitch = MathHelper.sin(pitchRad);
+        
+        // Right vector (perpendicular to camera look direction in horizontal plane)
+        float rx = cosYaw, ry = 0, rz = sinYaw;
+        // Up vector (perpendicular to both look and right)
+        float ux = sinYaw * sinPitch, uy = cosPitch, uz = -cosYaw * sinPitch;
 
         matrices.push();
         
@@ -173,20 +188,21 @@ public class FireFly extends Module {
             int cg = particle.color.getGreen();
             int cb = particle.color.getBlue();
             
-            // Billboard quad
-            buffer.vertex(matrix, x - pSize, y - pSize, z).color(cr, cg, cb, alpha);
-            buffer.vertex(matrix, x + pSize, y - pSize, z).color(cr, cg, cb, alpha);
-            buffer.vertex(matrix, x + pSize, y + pSize, z).color(cr, cg, cb, alpha);
-            buffer.vertex(matrix, x - pSize, y + pSize, z).color(cr, cg, cb, alpha);
+            // Camera-facing billboard quad
+            float s = pSize;
+            buffer.vertex(matrix, x - rx*s - ux*s, y - ry*s - uy*s, z - rz*s - uz*s).color(cr, cg, cb, alpha);
+            buffer.vertex(matrix, x + rx*s - ux*s, y + ry*s - uy*s, z + rz*s - uz*s).color(cr, cg, cb, alpha);
+            buffer.vertex(matrix, x + rx*s + ux*s, y + ry*s + uy*s, z + rz*s + uz*s).color(cr, cg, cb, alpha);
+            buffer.vertex(matrix, x - rx*s + ux*s, y - ry*s + uy*s, z - rz*s + uz*s).color(cr, cg, cb, alpha);
             
             // Glow effect - larger semi-transparent quad
             if (glow.isEnabled()) {
                 float gs = pSize * 2.5f;
                 int ga = alpha / 4;
-                buffer.vertex(matrix, x - gs, y - gs, z).color(cr, cg, cb, ga);
-                buffer.vertex(matrix, x + gs, y - gs, z).color(cr, cg, cb, ga);
-                buffer.vertex(matrix, x + gs, y + gs, z).color(cr, cg, cb, ga);
-                buffer.vertex(matrix, x - gs, y + gs, z).color(cr, cg, cb, ga);
+                buffer.vertex(matrix, x - rx*gs - ux*gs, y - ry*gs - uy*gs, z - rz*gs - uz*gs).color(cr, cg, cb, ga);
+                buffer.vertex(matrix, x + rx*gs - ux*gs, y + ry*gs - uy*gs, z + rz*gs - uz*gs).color(cr, cg, cb, ga);
+                buffer.vertex(matrix, x + rx*gs + ux*gs, y + ry*gs + uy*gs, z + rz*gs + uz*gs).color(cr, cg, cb, ga);
+                buffer.vertex(matrix, x - rx*gs + ux*gs, y - ry*gs + uy*gs, z - rz*gs + uz*gs).color(cr, cg, cb, ga);
             }
         }
         

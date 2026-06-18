@@ -1,7 +1,9 @@
 package tech.javelin.client.modules.impl.movement;
 
 import com.darkmagician6.eventapi.EventTarget;
-import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.base.events.impl.player.EventUpdate;
@@ -13,14 +15,12 @@ import tech.javelin.client.modules.api.setting.impl.NumberSetting;
 @ModuleAnnotation(
    name = "HighJump",
    category = Category.MOVEMENT,
-   description = "Усиливает подъём от левитации шалкера"
+   description = "Подбрасывает при открытии шалкер-бокса рядом"
 )
 public final class HighJump extends Module {
    public static final HighJump INSTANCE = new HighJump();
    
-   private final NumberSetting jumpHeight = new NumberSetting("Множитель", 2.0F, 1.0F, 5.0F, 0.1F);
-   
-   private boolean hadLevitation = false;
+   private final NumberSetting jumpHeight = new NumberSetting("Высота прыжка", 2.0F, 1.0F, 3.0F, 0.05F);
    
    private HighJump() {}
 
@@ -29,22 +29,47 @@ public final class HighJump extends Module {
    public void onUpdate(EventUpdate event) {
       if (mc.player == null || mc.world == null) return;
       
-      boolean hasLevitation = mc.player.hasStatusEffect(StatusEffects.LEVITATION);
+      // Scan nearby block entities for opening shulker boxes
+      BlockPos playerPos = mc.player.getBlockPos();
+      int scanRadius = 2;
       
-      if (hasLevitation) {
-         Vec3d vel = mc.player.getVelocity();
-         if (vel.y > 0) {
-            double multiplier = jumpHeight.getCurrent();
-            mc.player.setVelocity(vel.x, vel.y * multiplier, vel.z);
+      for (int x = -scanRadius; x <= scanRadius; x++) {
+         for (int y = -2; y <= 2; y++) {
+            for (int z = -scanRadius; z <= scanRadius; z++) {
+               BlockPos pos = playerPos.add(x, y, z);
+               BlockEntity be = mc.world.getBlockEntity(pos);
+               if (!(be instanceof ShulkerBoxBlockEntity shulker)) continue;
+               
+               // Check distance
+               double distX = mc.player.getX() - (pos.getX() + 0.5);
+               double distZ = mc.player.getZ() - (pos.getZ() + 0.5);
+               double horizDist = Math.sqrt(distX * distX + distZ * distZ);
+               double distY = Math.abs(mc.player.getY() - (pos.getY() + 0.5));
+               
+               // Max Y distance depends on current Y velocity (already launched = allow bigger range)
+               double maxDistY = mc.player.getVelocity().y > 1.0 ? 30.0 : 2.0;
+               
+               if (horizDist > 1.0 || distY > maxDistY) continue;
+               
+               // Check if shulker is opening (animation progress > 0)
+               float progress = shulker.getAnimationProgress(1.0F);
+               if (progress <= 0.0F) continue;
+               
+               // Apply upward velocity
+               Vec3d vel = mc.player.getVelocity();
+               mc.player.setVelocity(vel.x, jumpHeight.getCurrent(), vel.z);
+               
+               // Close screen if open
+               if (mc.currentScreen != null) {
+                  mc.player.closeHandledScreen();
+               }
+               return;
+            }
          }
-         hadLevitation = true;
-      } else if (hadLevitation) {
-         hadLevitation = false;
       }
    }
    
    @Override
    public void onEnable() {
-      hadLevitation = false;
    }
 }

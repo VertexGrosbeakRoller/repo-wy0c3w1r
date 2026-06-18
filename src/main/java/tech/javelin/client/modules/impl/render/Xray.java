@@ -69,13 +69,43 @@ public final class Xray extends Module {
       RenderSystem.lineWidth(2.0F);
       RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
       
+      Tessellator tessellator = Tessellator.getInstance();
+      BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      
       for (OreEntry entry : foundBlocks) {
-         double x = entry.pos.getX() - camera.x;
-         double y = entry.pos.getY() - camera.y;
-         double z = entry.pos.getZ() - camera.z;
+         float x = (float)(entry.pos.getX() - camera.x);
+         float y = (float)(entry.pos.getY() - camera.y);
+         float z = (float)(entry.pos.getZ() - camera.z);
+         int r = entry.r, g = entry.g, b = entry.b, a = 255;
          
-         drawOutline(matrices, (float) x, (float) y, (float) z, entry.r, entry.g, entry.b);
+         buffer.vertex(matrix, x, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
       }
+      
+      BufferRenderer.drawWithGlobalProgram(buffer.end());
       
       RenderSystem.depthMask(true);
       RenderSystem.enableDepthTest();
@@ -124,44 +154,6 @@ public final class Xray extends Module {
       return null;
    }
    
-   private void drawOutline(MatrixStack matrices, float x, float y, float z, int r, int g, int b) {
-      Matrix4f matrix = matrices.peek().getPositionMatrix();
-      Tessellator tessellator = Tessellator.getInstance();
-      
-      int a = 255;
-      
-      BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
-      
-      // Bottom
-      buffer.vertex(matrix, x, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z).color(r, g, b, a);
-      // Top
-      buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
-      // Verticals
-      buffer.vertex(matrix, x, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
-      
-      BufferRenderer.drawWithGlobalProgram(buffer.end());
-   }
    
    @Override
    public void onEnable() {

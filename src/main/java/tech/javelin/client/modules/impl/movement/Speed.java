@@ -17,9 +17,7 @@ import tech.javelin.base.events.impl.server.EventPacket;
 import tech.javelin.client.modules.api.Category;
 import tech.javelin.client.modules.api.Module;
 import tech.javelin.client.modules.api.ModuleAnnotation;
-import tech.javelin.client.modules.api.setting.impl.BooleanSetting;
 import tech.javelin.client.modules.api.setting.impl.ModeSetting;
-import tech.javelin.client.modules.api.setting.impl.NumberSetting;
 import tech.javelin.utility.game.other.NetworkUtils;
 import tech.javelin.utility.game.other.TimerManager;
 import tech.javelin.utility.game.player.MovingUtil;
@@ -37,10 +35,6 @@ public class Speed extends Module {
     
     public final ModeSetting mode = new ModeSetting("Mode", 
         "Strafe", "Strafe", "ReallyWorld", "Collision1", "Collision2");
-    
-    private final NumberSetting strafeSpeed = new NumberSetting("Strafe Speed", 0.28F, 0.1F, 0.5F, 0.01F);
-    private final NumberSetting collisionBoost = new NumberSetting("Collision Boost", 0.35F, 0.1F, 0.6F, 0.01F);
-    private final BooleanSetting rotateOnCollide = new BooleanSetting("Rotate on Collide", "Применять силу ротации при столкновении", true);
     
     private int strafeStage = 0;
     private double lastDistance = 0;
@@ -174,7 +168,7 @@ public class Speed extends Module {
             double zDist = mc.player.getZ() - mc.player.prevZ;
             lastDistance = Math.sqrt(xDist * xDist + zDist * zDist);
             
-            double baseSpeed = strafeSpeed.getCurrent();
+            double baseSpeed = 0.28;
             
             if (mc.player.isOnGround()) {
                 strafeStage = 2;
@@ -206,14 +200,12 @@ public class Speed extends Module {
             
             if (colliding && !wasColliding) {
                 collisionTimer.reset();
-                if (rotateOnCollide.isEnabled()) {
-                    rotationForce = (rand.nextFloat() - 0.5f) * 90.0F;
-                }
+                rotationForce = (rand.nextFloat() - 0.5f) * 90.0F;
             }
             
             wasColliding = colliding;
             
-            if (rotationForce != 0 && rotateOnCollide.isEnabled()) {
+            if (rotationForce != 0) {
                 mc.player.setYaw(mc.player.getYaw() + rotationForce * 0.05F);
                 rotationForce *= 0.85F;
                 if (Math.abs(rotationForce) < 0.5F) rotationForce = 0;
@@ -221,8 +213,7 @@ public class Speed extends Module {
             
             if (hasMovement) {
                 double speed = wasColliding && collisionTimer.getElapsedTime() < 200 
-                    ? collisionBoost.getCurrent() * 1.2 
-                    : strafeSpeed.getCurrent();
+                    ? 0.42 : 0.28;
                 MovingUtil.setVelocity(speed);
             }
             
@@ -241,15 +232,15 @@ public class Speed extends Module {
             }
             
             if (hasMovement) {
-                double baseSpeed = strafeSpeed.getCurrent();
+                double baseSpeed = 0.28;
                 long landTime = landTimer.getElapsedTime();
                 
                 double speed;
                 if (landTime < 100) {
-                    speed = collisionBoost.getCurrent() * 1.8;
+                    speed = 0.63;
                 } else if (landTime < 300) {
                     double t = (landTime - 100) / 200.0;
-                    speed = collisionBoost.getCurrent() * 1.8 * (1 - t) + baseSpeed * t;
+                    speed = 0.63 * (1 - t) + baseSpeed * t;
                 } else {
                     speed = baseSpeed;
                 }

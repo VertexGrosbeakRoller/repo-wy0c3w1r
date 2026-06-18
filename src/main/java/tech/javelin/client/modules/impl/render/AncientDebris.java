@@ -7,6 +7,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.gl.ShaderProgramKeys;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
@@ -18,7 +19,9 @@ import tech.javelin.client.modules.api.ModuleAnnotation;
 import tech.javelin.client.modules.api.setting.impl.NumberSetting;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @ModuleAnnotation(
    name = "AncientDebris",
@@ -31,6 +34,7 @@ public final class AncientDebris extends Module {
    private final NumberSetting radius = new NumberSetting("Радиус", 16, 4, 32, 1, "Блоки");
    
    private final List<BlockPos> foundBlocks = new ArrayList<>();
+   private final Set<BlockPos> notifiedBlocks = new HashSet<>();
    private int scanTick = 0;
    
    private AncientDebris() {}
@@ -61,13 +65,49 @@ public final class AncientDebris extends Module {
       RenderSystem.lineWidth(2.0F);
       RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
       
+      Tessellator tessellator = Tessellator.getInstance();
+      BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      
+      int r = 139, g = 90, b = 43, a = 255;
+      
       for (BlockPos pos : foundBlocks) {
-         double x = pos.getX() - camera.x;
-         double y = pos.getY() - camera.y;
-         double z = pos.getZ() - camera.z;
+         float x = (float)(pos.getX() - camera.x);
+         float y = (float)(pos.getY() - camera.y);
+         float z = (float)(pos.getZ() - camera.z);
          
-         drawOutline(matrices, (float) x, (float) y, (float) z);
+         // Bottom
+         buffer.vertex(matrix, x, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z).color(r, g, b, a);
+         
+         // Top
+         buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
+         
+         // Verticals
+         buffer.vertex(matrix, x, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
+         buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
       }
+      
+      BufferRenderer.drawWithGlobalProgram(buffer.end());
       
       RenderSystem.depthMask(true);
       RenderSystem.enableDepthTest();
@@ -90,62 +130,32 @@ public final class AncientDebris extends Module {
                BlockPos pos = playerPos.add(x, y, z);
                Block block = mc.world.getBlockState(pos).getBlock();
                if (block == Blocks.ANCIENT_DEBRIS) {
-                  foundBlocks.add(pos);
+                  foundBlocks.add(pos.toImmutable());
+                  
+                  // Chat notification for newly found blocks
+                  if (!notifiedBlocks.contains(pos)) {
+                     notifiedBlocks.add(pos.toImmutable());
+                     mc.player.sendMessage(
+                        Text.literal("§6[AncientDebris] §fОБНАРУЖЕН незеритовый обломок: §e" + pos.getX() + " " + pos.getY() + " " + pos.getZ()),
+                        false
+                     );
+                  }
                }
             }
          }
       }
    }
    
-   private void drawOutline(MatrixStack matrices, float x, float y, float z) {
-      Matrix4f matrix = matrices.peek().getPositionMatrix();
-      Tessellator tessellator = Tessellator.getInstance();
-      
-      int r = 139, g = 90, b = 43, a = 255;
-      
-      BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
-      
-      // Bottom edges
-      buffer.vertex(matrix, x, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z).color(r, g, b, a);
-      
-      // Top edges
-      buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
-      
-      // Vertical edges
-      buffer.vertex(matrix, x, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x + 1, y + 1, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y, z + 1).color(r, g, b, a);
-      buffer.vertex(matrix, x, y + 1, z + 1).color(r, g, b, a);
-      
-      BufferRenderer.drawWithGlobalProgram(buffer.end());
-   }
-   
    @Override
    public void onEnable() {
       scanTick = 0;
       foundBlocks.clear();
+      notifiedBlocks.clear();
    }
    
    @Override
    public void onDisable() {
       foundBlocks.clear();
+      notifiedBlocks.clear();
    }
 }
