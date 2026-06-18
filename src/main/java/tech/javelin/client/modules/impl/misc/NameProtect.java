@@ -18,13 +18,13 @@ import tech.javelin.client.modules.api.setting.impl.ModeSetting;
 public final class NameProtect extends Module {
    public static final NameProtect INSTANCE = new NameProtect();
    private final BooleanSetting hideFriends = new BooleanSetting("Скрыть друзей", false);
-   public String customNick = "CopperHead";
+   public String customNick = "CopperHead.fun";
 
    private NameProtect() {
    }
 
    public void setCustomNick(String nick) {
-      this.customNick = (nick == null || nick.isEmpty()) ? "CopperHead" : nick;
+      this.customNick = (nick == null || nick.isEmpty()) ? "CopperHead.fun" : nick;
    }
 
    @Native

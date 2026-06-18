@@ -3,6 +3,7 @@ package tech.javelin.client.modules.impl.misc;
 import com.darkmagician6.eventapi.EventTarget;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
+import net.minecraft.network.packet.c2s.play.ChatMessageC2SPacket;
 import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
@@ -12,18 +13,22 @@ import net.minecraft.util.PlayerInput;
 import ru.nexusguard.protection.annotations.Native;
 import tech.javelin.base.events.impl.input.EventKey;
 import tech.javelin.base.events.impl.other.EventTickMovement;
+import tech.javelin.base.events.impl.player.EventUpdate;
 import tech.javelin.client.modules.api.Category;
 import tech.javelin.client.modules.api.Module;
 import tech.javelin.client.modules.api.ModuleAnnotation;
+import tech.javelin.client.modules.api.setting.impl.BooleanSetting;
 import tech.javelin.client.modules.api.setting.impl.KeySetting;
 import tech.javelin.client.modules.api.setting.impl.ModeSetting;
+import tech.javelin.client.modules.api.setting.impl.NumberSetting;
 import tech.javelin.client.modules.impl.movement.AutoSprint;
 import tech.javelin.utility.game.player.PlayerInventoryUtil;
+import tech.javelin.utility.math.StopWatch;
 
 @ModuleAnnotation(
    name = "ServerHelper",
    category = Category.MISC,
-   description = ""
+   description = "Помощник для серверов"
 )
 public final class ServerHelper extends Module {
    public static final ServerHelper INSTANCE = new ServerHelper();
@@ -31,7 +36,16 @@ public final class ServerHelper extends Module {
    private final KeySetting antiFly = new KeySetting("Клавиша юза анти-полета", () -> {
       return this.server.is("ReallyWorld");
    });
+   
+   private final BooleanSetting autoGG = new BooleanSetting("Авто GG", "Автоматически писать gg после убийства", false);
+   private final BooleanSetting autoLogin = new BooleanSetting("Авто Логин", "Автоматически логиниться на сервере", false);
+   private final BooleanSetting autoTPA = new BooleanSetting("Авто ТПА", "Автоматически принимать тпа от друзей", false);
+   private final BooleanSetting antiAFK = new BooleanSetting("Анти-АФК", "Двигаться чтобы не кикнуло за АФК", false);
+   private final NumberSetting afkDelay = new NumberSetting("Задержка АФК", 30, 10, 120, 5, "Секунд");
+   
    private boolean useAntiFly;
+   private final StopWatch afkTimer = new StopWatch();
+   private int lastKillCount = 0;
 
    @EventTarget
    private void onKey(EventKey e) {
@@ -106,6 +120,18 @@ public final class ServerHelper extends Module {
             }
 
          }
+      }
+   }
+   
+   @EventTarget
+   @Native
+   private void onUpdate(EventUpdate e) {
+      if (mc.player == null || mc.world == null) return;
+      
+      // Anti-AFK
+      if (antiAFK.isEnabled() && afkTimer.getElapsedTime() >= afkDelay.getCurrent() * 1000L) {
+         afkTimer.reset();
+         mc.player.setYaw(mc.player.getYaw() + (float)(Math.random() * 4 - 2));
       }
    }
 }

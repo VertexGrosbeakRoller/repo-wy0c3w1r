@@ -50,7 +50,9 @@ import tech.javelin.client.modules.impl.movement.ElytraAccelerate;
 import tech.javelin.client.modules.impl.movement.ElytraBooster;
 import tech.javelin.client.modules.impl.movement.ElytraMotion;
 import tech.javelin.client.modules.impl.movement.ElytraRecast;
+import tech.javelin.client.modules.impl.movement.GrimGlide;
 import tech.javelin.client.modules.impl.movement.GuiWalk;
+import tech.javelin.client.modules.impl.movement.HighJump;
 import tech.javelin.client.modules.impl.movement.NoSlow;
 import tech.javelin.client.modules.impl.movement.NoWeb;
 import tech.javelin.client.modules.impl.movement.Speed;
@@ -62,6 +64,7 @@ import tech.javelin.client.modules.impl.player.Blink;
 import tech.javelin.client.modules.impl.player.FastBreak;
 import tech.javelin.client.modules.impl.player.NoDelay;
 import tech.javelin.client.modules.impl.player.NoPush;
+import tech.javelin.client.modules.impl.render.AncientDebris;
 import tech.javelin.client.modules.impl.render.AntiInvisible;
 import tech.javelin.client.modules.impl.render.Crosshair;
 import tech.javelin.client.modules.impl.render.CustomFog;
@@ -69,6 +72,7 @@ import tech.javelin.client.modules.impl.render.EntityESP;
 import tech.javelin.client.modules.impl.render.FullBright;
 import tech.javelin.client.modules.impl.render.Interface;
 import tech.javelin.client.modules.impl.render.Menu;
+import tech.javelin.client.modules.impl.render.NameTags;
 import tech.javelin.client.modules.impl.render.Removals;
 import tech.javelin.client.modules.impl.render.Predictions;
 import tech.javelin.client.modules.impl.render.SwingAnimation;
@@ -80,6 +84,7 @@ import tech.javelin.client.modules.impl.render.MusicHud;
 import tech.javelin.client.modules.impl.render.Wings;
 import tech.javelin.client.modules.impl.render.LineGlyphes;
 import tech.javelin.client.modules.impl.render.Chams;
+import tech.javelin.client.modules.impl.render.Hands;
 import tech.javelin.client.modules.impl.render.HoldMyItems;
 import tech.javelin.client.modules.impl.render.FireFly;
 import tech.javelin.client.modules.impl.render.Particles;
@@ -140,6 +145,8 @@ public final class ModuleManager implements IMinecraft {
       registerModule(AirStuck.INSTANCE);
       registerModule(ElytraMotion.INSTANCE);
       registerModule(NoWeb.INSTANCE);
+      registerModule(GrimGlide.INSTANCE);
+      registerModule(HighJump.INSTANCE);
    }
 
    private void registerRender() {
@@ -166,6 +173,9 @@ public final class ModuleManager implements IMinecraft {
       registerModule(FireFly.INSTANCE);
       registerModule(Particles.INSTANCE);
       registerModule(WorldParticles.INSTANCE);
+      registerModule(NameTags.INSTANCE);
+      registerModule(Hands.INSTANCE);
+      registerModule(AncientDebris.INSTANCE);
       registerModule(ClientSounds.INSTANCE);
    }
 
