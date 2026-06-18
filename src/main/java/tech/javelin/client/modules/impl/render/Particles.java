@@ -44,6 +44,11 @@ import java.util.Random;
    description = "Кастомные партиклы с физикой"
 )
 public final class Particles extends Module {
+   // Known particle textures from assets/javelin/Particle/
+   private static final String[] KNOWN_TEXTURES = {
+      "Default", "glow", "dollar", "star", "heart", "crown", "sparkle", "snowflake", "skull", "Copper"
+   };
+   
    public static final Particles INSTANCE = new Particles();
    
    // Настройки появления
@@ -68,11 +73,6 @@ public final class Particles extends Module {
    private final Map<String, Identifier> textureCache = new HashMap<>();
    private double lastX, lastY, lastZ;
    private int walkTicks = 0;
-   
-   // Known particle textures from assets/javelin/Particle/
-   private static final String[] KNOWN_TEXTURES = {
-      "Default", "glow", "dollar", "star", "heart", "crown", "sparkle", "snowflake", "skull", "Copper"
-   };
    
    private Particles() {
       this.particleTexture = new ModeSetting("Текстура", KNOWN_TEXTURES);
