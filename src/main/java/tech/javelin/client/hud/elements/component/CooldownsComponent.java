@@ -144,7 +144,7 @@ public class CooldownsComponent extends DraggableHudElement {
 
       drawBlurBackground(ctx, posX, posY, this.widthAnimation.getValue(), 14.5F, theme, this.alpha.getValue());
 
-      ctx.drawText(Fonts.NURIKI.getFont(10.0F), "T", posX + 4.25F, posY + 5.5F, theme.getColor().withAlpha(255.0F * this.alpha.getValue()));
+      ctx.drawText(Fonts.ICONS.getFont(10.0F), "T", posX + 4.25F, posY + 5.5F, theme.getColor().withAlpha(255.0F * this.alpha.getValue()));
 
       ctx.drawText(Fonts.SEMIBOLD.getFont(8.3F), "|", posX + 15.25F, posY + 4F, new ColorRGBA(166, 166, 166, 255.0F * this.alpha.getValue()));
 

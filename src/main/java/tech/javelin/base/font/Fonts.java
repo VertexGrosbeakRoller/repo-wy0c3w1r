@@ -13,7 +13,6 @@ public final class Fonts {
    public static final MsdfFont COMFORTA_LIGHT = MsdfFont.builder().atlas("comfortaa_light").data("comfortaa_light").build();
    public static final MsdfFont COMFORTA_REGULAR = MsdfFont.builder().atlas("comfortaa_regular").data("comfortaa_regular").build();
    public static final MsdfFont LUPA = MsdfFont.builder().atlas("lupa").data("lupa").build();
-   public static final MsdfFont NURIKI = MsdfFont.builder().atlas("nuriki").data("nuriki").build();
 
    @Generated
    private Fonts() {
