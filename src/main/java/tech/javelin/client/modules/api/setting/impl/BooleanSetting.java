@@ -11,6 +11,7 @@ public class BooleanSetting extends Setting {
    private boolean enabled;
    private final String description;
    private final Animation animation;
+   private int keyCode = -1;
 
    public BooleanSetting(String name, boolean state) {
       super(name);
@@ -80,5 +81,13 @@ public class BooleanSetting extends Setting {
    @Generated
    public Animation getAnimation() {
       return this.animation;
+   }
+
+   public int getKeyCode() {
+      return this.keyCode;
+   }
+
+   public void setKeyCode(int keyCode) {
+      this.keyCode = keyCode;
    }
 }

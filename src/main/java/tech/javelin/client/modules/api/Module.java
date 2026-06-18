@@ -309,5 +309,7 @@ public abstract class Module implements IClient, Comparable<Module> {
       return "Module(info=" + var10000 + ", name=" + this.getName() + ", category=" + String.valueOf(this.getCategory()) + ", enabled=" + this.isEnabled() + ", keyCode=" + this.getKeyCode() + ", animation=" + String.valueOf(this.getAnimation()) + ", descAnimation=" + String.valueOf(this.getDescAnimation()) + ")";
    }
 
-    public abstract boolean onEvent(Event event);
+    public boolean onEvent(Event event) {
+        return false;
+    }
 }
