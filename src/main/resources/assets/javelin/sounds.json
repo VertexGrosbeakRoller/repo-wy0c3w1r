@@ -1,0 +1,12 @@
+{
+  "enable": {
+    "sounds": [
+      "javelin:enable"
+    ]
+  },
+  "disable": {
+    "sounds": [
+      "javelin:disable"
+    ]
+  }
+}
